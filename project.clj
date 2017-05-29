@@ -10,5 +10,9 @@
                                                     javax.jms/jms
                                                     com.sun.jmdk/jmxtools
                                                     com.sun.jmx/jmxri]]
-                 ]
+                 [aleph "0.3.0-alpha2"]
+                 [compojure "1.1.1"]
+                 [ring "1.1.6"]
+                 [hiccup "1.0.1"]
+                 [lein-swank "1.4.4"]]]
   :main iyye.core)
