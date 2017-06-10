@@ -5,7 +5,9 @@
     ; This sets the correct file type for js includes used by hiccup
         (ring.middleware resource file-info)
         (hiccup core page))
-  (:require [compojure.route :as route]))
+  (:require [compojure.route :as route]
+            [iyye.ioframes :as bios]
+            [clojure.tools.logging :as log]))
 
 (defn page []
   "HTML page rendered using Hiccup. Includes the css and js for websockets."
@@ -25,25 +27,6 @@
      (include-js "/static/javascripts/web_socket.js")
      (include-js "/static/javascripts/app.js")]))
 
-; move to iyye!
-(defn chat-init [ch]
-  "register callback for receive msg"
-  ;(receive-all ch #(println "message: " % ":" ch))
-  )
-
-(def chat-channel (ref ()))
-
-(defn chat-handler [ch room]
-  "Relays messages into a chat room. If it doesn't
-  exist create a new channel"
-  (let [chat (named-channel room chat-init)]
-    (siphon chat ch)
-    (siphon ch chat)))
-
-(defn send-msg [msg]
-  (enqueue @chat-channel (str "iyye> " msg)))
-
-
 (defn sync-app [request]
   "Rendered response of the chat page"
   {:status 200
@@ -56,6 +39,24 @@
       (wrap-resource "public")
       (wrap-file-info)))
 
+(defn start-lispy-chat-server [& args])
+
+(def chat-channel (ref ()))
+(defn send-msg [msg]
+  (enqueue @chat-channel (str "iyye> " msg)))
+
+(def lispy-chat-IO (bios/create-IO "lispy-chat" start-lispy-chat-server (bios/create-InputSources false []) (bios/->OutputActuators false [send-msg])))
+(dosync (alter bios/AvatarsIOList conj lispy-chat-IO))
+
+(def lispy-chat-process-input (partial bios/process-input lispy-chat-IO))
+
+(defn chat-init [ch])
+(defn chat-handler [ch room]
+  "Relays messages into a chat room. If it doesn't
+  exist create a new channel"
+  (let [chat (named-channel room chat-init)]
+    (siphon chat ch)
+    (siphon ch chat)))
 
 (defn chat [ch request]
   "View handler that handles a chat room. If it's not
@@ -64,14 +65,12 @@
   (if (:websocket request)
     (dosync
       (ref-set chat-channel ch)
-      (chat-handler ch "iyye")
-      )
+      (chat-handler ch "iyye"))
     (enqueue ch (wrapped-sync-app request))))
-
 (defroutes app-routes
            "Routes requests to their handler function. Captures dynamic variables."
            (GET ["/chat/iyye"] {}
-                (wrap-aleph-handler chat))
+             (wrap-aleph-handler chat))
            (GET ["/"] {} "To access Iyye, go to /chat/iyye <a href=\"http://localhost:8080/chat/iyye\">iyye chat</a>")
            ;;Route our public resources like css and js to the static url
            (route/resources "/static")
@@ -83,3 +82,9 @@
   all the routes we specified and is websocket ready."
   (start-http-server (wrap-ring-handler app-routes)
                      {:host "localhost" :port 8080 :websocket true}))
+
+; move to iyye!
+(defn chat-init [ch]
+  "register callback for receive msg"
+  (receive-all ch lispy-chat-process-input))
+
