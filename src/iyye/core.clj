@@ -15,13 +15,9 @@
 ; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (ns iyye.core
-  (:require [iyye.iyye-bios :as bios]
+  (:require [iyye.iolist :as iolist]
             [iyye.resource :as resource]
-            [clojure.tools.logging :as log]
-    ;[clojure.core.async :as async :refer [thread]]
-            ))
-
-; wake sleep state machine
+            [clojure.tools.logging :as log]))
 
 (def load-state? false)
 
@@ -30,12 +26,14 @@
   )
 
 (defn- init-state []
-   (log/info "first day"))
+   (log/info "first day")
+)
 
 (def DAY_CHECK_TIME_MILLIS 1000)
 
+; wake sleep state machine
 (defn main-function []
-    (bios/init-bios)
+  ;  (iolist/init-io)
 
     (if load-state?
       (load-state)
@@ -56,6 +54,7 @@
 
           (resource/stop-night current-night)))))
 
+; Start in a thread so that I can use REPL too
 (defn -main []
-  (-> (Thread. main-function) .start))
-  
+  (-> (Thread. main-function) .start)
+  (iolist/init-io))
