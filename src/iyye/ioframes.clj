@@ -14,7 +14,6 @@
 ; You should have received a copy of the GNU Affero General Public License
 ; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 (ns iyye.ioframes
   (:require
     [clojure.tools.logging :as log]))
@@ -27,7 +26,6 @@
 
 (defn create-IO [name start-fumction inputs-list outputs-list] (IO. name start-fumction inputs-list outputs-list))
 ; list of IOs
-(def AvatarsIOList (ref ()))
 
 ;(defrecord InputOutput [InOutStream Period Stream unprocessed Streams ProcessFunction])
 ; actuators
@@ -36,16 +34,9 @@
 ;  (dosync (alter outputs-list conj output)))
 
 ; start all input threads
-(defn init-bios []
-  (letfn [(start-all [l]
-            (for [func (map :start-function l)
-                  :when func] (func)))]
-    (do
-      (start-all AvatarsIOList)
-      (start-all (:inputs-list AvatarsIOList))
-      (start-all (:outputs-list AvatarsIOList)))))
 
 (defn process-input [IO input]
+  (log/info (str (:name IO) input))
   (for [func (map :input-listeners-list IO)
         :when func] (func input)))
-        
+
