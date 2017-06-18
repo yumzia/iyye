@@ -1,3 +1,5 @@
+
+
 (ns extras.lispychat
   (:use lamina.core
         aleph.http
@@ -39,16 +41,10 @@
       (wrap-resource "public")
       (wrap-file-info)))
 
-(defn start-lispy-chat-server [& args])
-
 (def chat-channel (ref ()))
 (defn send-msg [msg]
   (enqueue @chat-channel (str "iyye> " msg)))
 
-(def lispy-chat-IO (bios/create-IO "lispy-chat" start-lispy-chat-server (bios/create-InputSources false []) (bios/->OutputActuators false [send-msg])))
-(dosync (alter bios/AvatarsIOList conj lispy-chat-IO))
-
-(def lispy-chat-process-input (partial bios/process-input lispy-chat-IO))
 
 (defn chat-init [ch])
 (defn chat-handler [ch room]
@@ -67,6 +63,7 @@
       (ref-set chat-channel ch)
       (chat-handler ch "iyye"))
     (enqueue ch (wrapped-sync-app request))))
+
 (defroutes app-routes
            "Routes requests to their handler function. Captures dynamic variables."
            (GET ["/chat/iyye"] {}
@@ -80,10 +77,14 @@
 (defn start-lispy-chat-server [& args]
   "Main thread for the server which starts an async server with
   all the routes we specified and is websocket ready."
+  (log/info "start http server")
   (start-http-server (wrap-ring-handler app-routes)
                      {:host "localhost" :port 8080 :websocket true}))
 
-; move to iyye!
+(def lispy-chat-IO (bios/create-IO "lispy-chat" start-lispy-chat-server (bios/create-InputSources false []) (bios/->OutputActuators false [send-msg])))
+
+(def lispy-chat-process-input (partial bios/process-input lispy-chat-IO))
+
 (defn chat-init [ch]
   "register callback for receive msg"
   (receive-all ch lispy-chat-process-input))
