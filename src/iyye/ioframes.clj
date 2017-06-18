@@ -27,16 +27,7 @@
 (defn create-IO [name start-fumction inputs-list outputs-list] (IO. name start-fumction inputs-list outputs-list))
 ; list of IOs
 
-;(defrecord InputOutput [InOutStream Period Stream unprocessed Streams ProcessFunction])
-; actuators
-;(def outputs-list (ref []))
-; (defn !register-output [output]
-;  (dosync (alter outputs-list conj output)))
-
-; start all input threads
-
 (defn process-input [IO input]
   (log/info (str (:name IO) input))
   (for [func (map :input-listeners-list IO)
         :when func] (func input)))
-
