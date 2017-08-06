@@ -16,7 +16,8 @@
 
 (ns iyye.ioframes
   (:require
-    [clojure.tools.logging :as log]))
+    [clojure.tools.logging :as log]
+    [iyye.persistence :as persistence]))
 
 (defrecord InputSources [start-function input-listeners-list])
 (defn create-InputSources [start-function input-listeners-list] (InputSources. start-function input-listeners-list))
@@ -30,4 +31,5 @@
 (defn process-input [IO input]
   (log/info (str (:name IO) input))
   (for [func (map :input-listeners-list IO)
-        :when func] (func input)))
+        :when func] (func input))
+  (persistence/write-io-to-db IO input))
