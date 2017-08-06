@@ -29,7 +29,12 @@
 ; list of IOs
 
 (defn process-input [IO input]
-  (log/info (str (:name IO) input))
+  (log/info (str "in: " (:name IO) input))
   (for [func (map :input-listeners-list IO)
         :when func] (func input))
-  (persistence/write-io-to-db IO input))
+  (persistence/write-io-to-db IO :input input))
+
+(defn process-output [IO output]
+  (log/info (str "out:" (:name IO) output))
+  ((first (:outputs-list (:outputs-list IO))) output)
+  (persistence/write-io-to-db IO :output output))
