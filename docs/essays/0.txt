@@ -3,4 +3,6 @@ breakthrough idea might come from a single individual or a small group that succ
 
 Why clojure? ..
 
+How? Trying one idea to hook GOFAI symbol processing and machine learning.
+
 Sasha Yumzya
