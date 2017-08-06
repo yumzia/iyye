@@ -17,6 +17,7 @@
 (ns iyye.resource
   (:require
     [iyye.task :refer [start-task stop-task]]
+    [iyye.persistence :as persistence]
     [clojure.tools.logging :as log]))
 
 (defprotocol Resource
@@ -91,8 +92,9 @@
     [(start-task day)
      (dosync ref-set (:day-start day) (System/currentTimeMillis))
      (dosync ref-set awake-or-sleep true)
-     (log/info "next day: " @num-days)
-     (dosync (alter num-days inc))]))
+     (dosync (alter num-days inc))
+     (persistence/record-day @num-days)
+     (log/info "next day: " @num-days)]))
 
 (defn is-day-over? [day] (are-resources-exhausted? day))
 
@@ -101,6 +103,7 @@
 (defn start-night [night]
   (doall
     [(start-task night)
+     (persistence/record-night @num-days)
      (dosync ref-set (:night-start night) (System/currentTimeMillis))]))
 
 (defn stop-day [day]
@@ -111,3 +114,6 @@
 (defn stop-night [night]
   (dorun
     [(stop-task night)]))
+
+(defn load-day! []
+  (dosync (ref-set num-days (persistence/load-days))))
