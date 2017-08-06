@@ -21,15 +21,20 @@
            [com.mongodb DB WriteConcern]
            (org.bson.types ObjectId)))
 
-(defn add-entry [doc dbname entry]
+(defn add-entry [dbname doc entry]
   (let [conn (mg/connect)
-        db (mg/get-db conn (str "iyye-" dbname))]
+        db (mg/get-db conn dbname)]
     (mc/insert db doc entry)))
 
-(defn get-entry [doc dbname key]
+(defn get-entry [dbname doc key]
   (let [conn (mg/connect)
-        db (mg/get-db conn (str "iyye-" dbname))]
+        db (mg/get-db conn dbname)]
     (mc/find-maps db doc key)))
+
+(defn get-count [dbname doc key]
+  (let [conn (mg/connect)
+        db (mg/get-db conn dbname)]
+    (mc/count db doc key)))
 
 ; drop all
 ;var dbs = db.getMongo().getDBNames()
@@ -38,3 +43,4 @@
 ; print           ("dropping db " + db.getName ())           ;
 ; db.dropDatabase ()                                         ;
 ; }
+
