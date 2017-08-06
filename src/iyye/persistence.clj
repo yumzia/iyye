@@ -57,8 +57,8 @@
 (defn load-days []
   (mongo/get-count iyye-main (str "days_" @iyye-name) {}))
 
-(defn write-io-to-db [IO input]
-  (let [doc (str "IO")
+(defn write-io-to-db [days IO dir input]
+  (let [doc (str "IO_day_" days)
         dbname (str @iyye-name "_IO_" (:name IO))
-        entry {:time (str (.format (java.text.SimpleDateFormat. "MM_dd_yyyy_HH_mm_ss") (java.util.Date.))) :input input}]
+        entry {:time (str (.format (java.text.SimpleDateFormat. "MM_dd_yyyy_HH_mm_ss") (java.util.Date.))) dir input}]
     (mongo/add-entry dbname doc entry)))
