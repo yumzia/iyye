@@ -47,6 +47,7 @@
 
 
 (defn chat-init [ch])
+
 (defn chat-handler [ch room]
   "Relays messages into a chat room. If it doesn't
   exist create a new channel"
