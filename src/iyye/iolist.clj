@@ -16,6 +16,7 @@
 
 (ns iyye.iolist
   (:require [extras.lispychat :as lispychat]
+            [iyye.persistence :as persistence]
             [clojure.tools.logging :as log]))
 
 (def AvatarsIOList (ref ()))
@@ -26,9 +27,12 @@
 
 (defn init-io []
   (letfn [(start-all [l]
-            (for [func (map :start-function l) :when func] (func)))]
-    (do [
+            (doall (for [func (map :start-function l) :when func] (func))))]
+    (doall [
       (init-avatars-list)
       (start-all @AvatarsIOList)
       (start-all (:inputs-list @AvatarsIOList))
       (start-all (:outputs-list @AvatarsIOList))])))
+
+(defn load-io-state []
+  )
