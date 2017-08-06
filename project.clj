@@ -20,6 +20,7 @@
                  [aleph "0.3.0-alpha2"]
                  [compojure "1.1.1"]
                  [lein-swank "1.4.4"]
-                 [com.novemberain/monger "3.1.0"]]
+                 [com.novemberain/monger "3.1.0"]
+                 [org.clojure/tools.cli "0.3.5"]]
   :source-paths ["src/iyye" "src/extras" "src"]
   :main iyye.core)
