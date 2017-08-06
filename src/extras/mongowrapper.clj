@@ -35,12 +35,3 @@
   (let [conn (mg/connect)
         db (mg/get-db conn dbname)]
     (mc/count db doc key)))
-
-; drop all
-;var dbs = db.getMongo().getDBNames()
-;for(var i in dbs) {
-; db              = db.getMongo () .getDB (dbs [i])          ;
-; print           ("dropping db " + db.getName ())           ;
-; db.dropDatabase ()                                         ;
-; }
-
