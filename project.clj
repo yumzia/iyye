@@ -21,6 +21,7 @@
                  [compojure "1.1.1"]
                  [lein-swank "1.4.4"]
                  [com.novemberain/monger "3.1.0"]
-                 [org.clojure/tools.cli "0.3.5"]]
-  :source-paths ["src/iyye" "src/extras" "src"]
-  :main iyye.core)
+                 [org.clojure/tools.cli "0.3.5"]
+                 [org.clojure/core.async "0.3.443"]]
+  :source-paths ["src/iyye" "src/iyye/bios" "src/extras" "src"]
+  :main iyye.bios.core)
