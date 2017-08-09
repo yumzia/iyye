@@ -1,4 +1,4 @@
-It is foolish not to gamble: "A lone hacker scenario cannot be excluded either. .. it is possible that that the last crytical 
+It is foolish not to gamble now: "A lone hacker scenario cannot be excluded either. .. it is possible that that the last crytical 
 breakthrough idea might come from a single individual or a small group that succeeds in putting everything together." Nick Bostrom
 
 Why clojure? ..
