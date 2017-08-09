@@ -8,8 +8,9 @@
         (ring.middleware resource file-info)
         (hiccup core page))
   (:require [compojure.route :as route]
-            [iyye.ioframes :as bios]
-            [clojure.tools.logging :as log]))
+            [iyye.bios.ioframes :as ioframes]
+            [clojure.tools.logging :as log]
+            [iyye.bios.process-lisp :as lisp]))
 
 (defn page []
   "HTML page rendered using Hiccup. Includes the css and js for websockets."
@@ -42,9 +43,8 @@
       (wrap-file-info)))
 
 (def chat-channel (ref ()))
-(defn send-msg [msg]
+(defn send-msg [IO msg]
   (enqueue @chat-channel (str "iyye> " msg)))
-
 
 (defn chat-init [ch])
 
@@ -82,9 +82,9 @@
   (start-http-server (wrap-ring-handler app-routes)
                      {:host "localhost" :port 8080 :websocket true}))
 
-(def lispy-chat-IO (bios/create-IO "lispy-chat" start-lispy-chat-server (bios/create-InputSources false []) (bios/->OutputActuators false [send-msg])))
+(def lispy-chat-IO (ioframes/create-IO "lispy-chat" start-lispy-chat-server (ioframes/create-InputSources false [lisp/process-input]) (ioframes/->OutputActuators false [send-msg])))
 
-(def lispy-chat-process-input (partial bios/process-input lispy-chat-IO))
+(def lispy-chat-process-input (partial ioframes/process-input lispy-chat-IO))
 
 (defn chat-init [ch]
   "register callback for receive msg"
