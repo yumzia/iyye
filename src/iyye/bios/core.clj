@@ -53,7 +53,9 @@
 
 (defn- init-state [name]
   (log/info "first day")
-  (persistence/set-current-iyye name))
+  (nouns/add-word "iyye.name" #(list name) nil)
+  (persistence/set-current-iyye name)
+  )
 
 (defn usage [options-summary]
   (->> ["Usage: iyye action/option"
