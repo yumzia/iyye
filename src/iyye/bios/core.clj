@@ -18,6 +18,7 @@
   (:require [iyye.bios.iolist :as iolist]
             [iyye.bios.resource :as resource]
             [iyye.bios.persistence :as persistence]
+            [iyye.bios.noun-words :as nouns]
             [clojure.tools.logging :as log]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as str]))
@@ -26,6 +27,7 @@
 
 ; wake sleep state machine
 (defn main-loop []
+  (nouns/add-word "iyye.days" #(list @resource/num-days) nil)
   (while true
     (let [current-day (resource/create-day)]
       (resource/start-day current-day)
@@ -44,14 +46,13 @@
 
 (defn- load-state [name]
   (log/info "first day load")
-  (println "first day load !!")
   (persistence/load-current-iyye name)
+  (nouns/add-word "iyye.name" #(list name) nil)
   (resource/load-day!)
   (iolist/load-io-state))
 
 (defn- init-state [name]
   (log/info "first day")
-  (println "first day !!")
   (persistence/set-current-iyye name))
 
 (defn usage [options-summary]
