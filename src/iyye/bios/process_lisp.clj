@@ -17,16 +17,26 @@
 (ns iyye.bios.process-lisp
    (:require [clojure.string :as str]
              [iyye.bios.parse-lisp :as parse]
-             [iyye.bios.ioframes :as ioframes]))
+             [iyye.bios.ioframes :as ioframes]
+             [iyye.bios.words :as words]))
+
+(defn process-control [tree input IO]
+  (let [cmd (first tree)
+        params (for [cur (rest tree)] (if (seq? cur) (process-control cur "substr" IO) cur))]
+    ;    (println "processing" cmd)
+    (if cmd
+      (dorun (words/action cmd params IO))
+      (ioframes/process-output IO (str "failed to parse: " input)))))
 
 (defn process-lispy-ctrl-input [IO input]
-  (let [tree (parse/make-syntax-tree input)]
-    (future (Thread/sleep 1000) (ioframes/process-output IO "deal with a tree"))))
+  (let [tree (parse/get-syntax-tree input)]
+    (future (Thread/sleep 1000)
+            (process-control tree input IO))))
 
 (defn process-lispy-input [IO input]
   (if (= \# (first input))
     (process-lispy-ctrl-input IO (subs input 1))
-    (future (Thread/sleep 1000) (ioframes/process-output IO "parsing lispy sentences not implemented"))))
+    (future (Thread/sleep 1000) (ioframes/process-output IO "parsing lispy sentences not implemented yet"))))
 
 (defn process-input [IO input]
    (if (= input "What is answer to life, the universe and everything?")
