@@ -52,11 +52,27 @@
               (ioframes/process-output IO (str "Can't set " name " to " value))))
         (ioframes/process-output IO (str "failed to parse: too many matched setters to " name))))))
 
+(defn shutdown-func [IO arg]
+  (ioframes/process-output IO (str "Shutting down!"))
+  (task/shutdown))
+
+(defn pause-func [IO arg]
+  (task/pause)
+  (ioframes/process-output IO (str "Paused")))
+
+(defn resume-func [IO arg]
+  (task/resume)
+  (ioframes/process-output IO (str "Resumed")))
+
 (def get-action (action-word. "get" getter-func nil))
 (def set-action (action-word. "set" setter-func nil))
+(def shutdown-action (action-word. "shutdown" shutdown-func nil))
+(def pause-action (action-word. "pause" pause-func nil))
+(def resume-action (action-word. "resume" resume-func nil))
+
 
 ; FIXME to add runtime configuring
-(def action-words (ref (list get-action set-action)))
+(def action-words (ref (list get-action set-action shutdown-action pause-action resume-action)))
 
 (defn action [cmd params IO]
   (let [actions
