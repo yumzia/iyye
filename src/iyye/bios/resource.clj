@@ -70,8 +70,8 @@
 
 (def num-days (ref 0))
 
-(defrecord DayRoutine [day-start day-time threshold function task-future])
-(defrecord NightRoutine [day night-start night-time threshold function task-future])
+(defrecord DayRoutine [name day-start day-time threshold function task-future parent])
+(defrecord NightRoutine [name day night-start night-time threshold function task-future parent])
 
 (def awake-or-sleep (ref false))
 (defn is-awake? [] @awake-or-sleep)
@@ -82,10 +82,10 @@
 (def DAY_THRESHOLD 0.1)
 
 (defn create-day []
-  (DayRoutine. (System/currentTimeMillis) DAY_TIME DAY_THRESHOLD #(Thread/sleep 1000) (ref 0)))
+  (DayRoutine. "iyye.bios.day-task" (System/currentTimeMillis) DAY_TIME DAY_THRESHOLD #(Thread/sleep 1000) (ref 0) "iyye.bios.main" ))
 
 (defn create-night [day]
-  (NightRoutine. day (System/currentTimeMillis) DAY_TIME DAY_THRESHOLD #(Thread/sleep 1000) (ref 0)))
+  (NightRoutine. "iyye.bios.night-task" day (System/currentTimeMillis) DAY_TIME DAY_THRESHOLD #(Thread/sleep 1000) (ref 0) "iyye.bios.main" ))
 
 (defn start-day [day]
   (doall
