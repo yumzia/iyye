@@ -19,6 +19,7 @@
             [iyye.bios.resource :as resource]
             [iyye.bios.persistence :as persistence]
             [iyye.bios.noun-words :as nouns]
+            [iyye.bios.task :as task]
             [clojure.tools.logging :as log]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as str]))
@@ -27,8 +28,6 @@
 
 ; wake sleep state machine
 (defn main-loop []
-  (nouns/add-word "iyye.days" #(list @resource/num-days) nil)
-  (while true
     (let [current-day (resource/create-day)]
       (resource/start-day current-day)
 
@@ -42,7 +41,9 @@
         (while (not (resource/is-night-over? current-night))
           (Thread/sleep DAY_CHECK_TIME_MILLIS))
 
-        (resource/stop-night current-night)))))
+        (resource/stop-night current-night))))
+
+(def main-task {:name "iyye.bios.main" :function main-loop :task-future (ref 0) :parent nil :children (ref (list))})
 
 (defn- load-state [name]
   (log/info "first day load")
@@ -115,5 +116,6 @@
         "load"  (if (persistence/iyye-exists? (:name options)) (load-state (:name options)) (exit -1 "Does not exist")))))
 
   (doall  (iolist/init-io))
+  (nouns/add-word "iyye.days" #(list @resource/num-days) nil)
   ; Start in a thread so that I can use REPL too
-  (-> (Thread. main-loop) .start))
+  (task/start-task main-task))
