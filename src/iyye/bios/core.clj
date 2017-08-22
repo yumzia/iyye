@@ -43,7 +43,7 @@
 
         (resource/stop-night current-night))))
 
-(def main-task {:name "iyye.bios.main" :function main-loop :task-future (ref 0) :parent nil :children (ref (list))})
+(def main-task {:name "iyye.bios.main" :function main-loop :task-future (ref 0) :parent nil})
 
 (defn- load-state [name]
   (log/info "first day load")
@@ -55,8 +55,7 @@
 (defn- init-state [name]
   (log/info "first day")
   (nouns/add-word "iyye.name" #(list name) nil)
-  (persistence/set-current-iyye name)
-  )
+  (persistence/set-current-iyye name))
 
 (defn usage [options-summary]
   (->> ["Usage: iyye action/option"
