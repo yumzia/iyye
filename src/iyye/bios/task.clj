@@ -25,7 +25,7 @@
   (loop [cur (zip/vector-zip @tasks-tree)]
     (if (zip/end? cur)
       nil
-      (if (= (:name (zip/node cur)))
+      (if (= (:name (zip/node cur)) name)
         cur
         (recur (zip/next cur))))))
 
@@ -40,11 +40,12 @@
 
 (defn add-task [task]
   (if-let [name (:parent task)]
-    (if-let [cur (find-task name)]
-      (if cur
+    (let [cur (find-task name)]
+      (when cur
         (dosync (ref-set tasks-tree
-                         (-> cur (zip/append-child task) zip/root))))
-      (dosync (alter tasks-tree conj task)))
+                         (if (and (not (zip/end? (zip/next cur))) (-> cur zip/next zip/branch?))
+                           (-> cur zip/next (zip/replace (conj (-> cur zip/next zip/node) task)) zip/root)
+                           (-> cur zip/up (zip/append-child [task]) zip/root))))))
     (dosync (alter tasks-tree conj task))))
 
 (defn remove-task [task]
