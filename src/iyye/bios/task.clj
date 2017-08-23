@@ -71,8 +71,8 @@
   (run-on-all-tasks #(future-cancel @(:task-future %))))
 
 (defn resume []
-  (run-on-all-tasks #(ref-set (:task-future %) (future (while (not (Thread/interrupted))
-                                                            (dorun [((:function %))]))))))
+  (run-on-all-tasks #(dosync (ref-set (:task-future %) (future (while (not (Thread/interrupted))
+                                                            (dorun [((:function %))])))))))
 
 (defn shutdown []
   "Trivial now. FIXME Yumzya later add saving in-progress tasks"
