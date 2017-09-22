@@ -1,14 +1,23 @@
-İye - (Chuvash: Ийĕ, İyĕ; Tatar: Ия, İyä; Russian: Ийе) is a deity or spirit who is a guardian, patron or protector of a place, person, natural assets or an animal. The term means owner, master, lord, possessor in Turkic languages.
+İye - (Chuvash: Ийĕ, İyĕ; Tatar: Ия, İyä; Russian: Ийе) is a deity or spirit who is a guardian, patron or protector of a place,
+person, natural assets or an animal. The term means owner, master, lord, possessor in Turkic languages.
 
-A İye guides, helps, or protects animals, individuals, and even inanimate assets such as mountains or rivers. According to the shamanic worldview, everything is alive, bearing an inherent virtue and power. It is believed that most persons have power animals, or tutelary spirits, which empower and protect them from harm – this is comparable to guardian spirits or angels. In these traditions, the İye may also lend the wisdom or attributes of its kind to those under its protection.
+A İye guides, helps, or protects animals, individuals, and even inanimate assets such as mountains or rivers. According to the
+shamanic worldview, everything is alive, bearing an inherent virtue and power. It is believed that most persons have power 
+animals, or tutelary spirits, which empower and protect them from harm – this is comparable to guardian spirits or angels. In 
+these traditions, the İye may also lend the wisdom or attributes of its kind to those under its protection.
 
 Yumzya (Chuvash, Russian: Юмзя) is a person with shamanic powers who can communicate with İye.
 
 It is foolish not to gamble now: "A lone hacker scenario cannot be excluded either. .. it is possible that that the last crytical 
 breakthrough idea might come from a single individual or a small group that succeeds in putting everything together." Nick Bostrom
 
-Why programming in Clojure? In my paid work as a software engineer I rarely touch Clojure. But I think it is a great language to design and develop a complex system in solo mode. I don't expect and don't plan any collaboration until this idea proves somewhat useful. Dynamic typing helps in hacking together things in ad-hoc mode, because while I have a full İye design in my head, it is not 100% complete and solid. Also in 80s I was tought that proper AI programming has to be in Lisp. People changed their minds since, but I am a bit old fashioned.
+Why programming in Clojure? In my paid work as a software engineer I rarely touch Clojure. But I think it is a great language to
+design and develop a complex system in solo mode. I don't expect and don't plan any collaboration until this idea proves somewhat
+useful. Dynamic typing helps in hacking together things in ad-hoc mode, because while I have a full İye design in my head, it is 
+not 100% complete and solid. Also in 80s I was tought that proper AI programming has to be in Lisp. People changed their minds 
+since, but I am a bit old fashioned.
 
-How? Trying one idea to hook GOFAI symbol processing, machine learning and several non-orthodox [but well developed] consiousness theories.
+How? Trying one idea to hook GOFAI symbol processing, machine learning and several non-orthodox [but well developed] consiousnes 
+theories.
 
 Sasha Yumzya
