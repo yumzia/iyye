@@ -14,107 +14,111 @@
 ; You should have received a copy of the GNU Affero General Public License
 ; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(ns iyye.bios.core
-  (:require [iyye.bios.iolist :as iolist]
-            [iyye.bios.resource :as resource]
-            [iyye.bios.persistence :as persistence]
-            [iyye.bios.noun-words :as nouns]
-            [iyye.bios.task :as task]
-            [clojure.tools.logging :as log]
-            [clojure.tools.cli :refer [parse-opts]]
-            [clojure.string :as str]))
+(ns iyye.subcon.knowledge.words
+  (:require
+    [clojure.tools.logging :as log]
+    [iyye.bios.ioframes :as ioframes]
+    [iyye.bios.persistence :as persistence]
+    ;[iyye.subcon.knowledge.relation :as relation]
+    ))
 
-(def DAY_CHECK_TIME_MILLIS 1000)
+(def relations-words (ref []))
+(def types-words (ref []))
+(def instances-words (ref []))
+(def adjective-words (ref []))
+(def action-words (ref []))
 
-; wake sleep state machine
-(defn main-loop []
-    (let [current-day (resource/create-day)]
-      (resource/start-day current-day)
+(defrecord Iyye_Predicate [AccordingTo When Time Prob])
 
-      (while (not (resource/is-day-over? current-day))
-        (Thread/sleep DAY_CHECK_TIME_MILLIS))
+(defrecord Iyye_Atom [Name Uname predicate])
 
-      (resource/stop-day current-day)
+(defn create-iyye-atom [name according when words-list]
+  (let [Time (persistence/current-time-to-string)
+        uname (str name (count words-list))
+        atom (->Iyye_Atom name uname (->Iyye_Predicate according when Time 1.0))]
+    atom))
 
-      (let [current-night (resource/create-night current-day)]
-        (resource/start-night current-night)
-        (while (not (resource/is-night-over? current-night))
-          (Thread/sleep DAY_CHECK_TIME_MILLIS))
+(defrecord Iyye_Type [atom SubtypeOf Subtypes Predicates])
 
-        (resource/stop-night current-night))))
+(defn create-iyye-type [Name AccordingTo When SubtypeOf Subtypes]
+  (let [type-atom (create-iyye-atom Name AccordingTo When types-words)
+        type (->Iyye_Type type-atom SubtypeOf Subtypes [])]
+    type))
 
-(def main-task {:name "iyye.bios.main" :function main-loop :task-future (ref 0) :parent nil})
+(defn load-iyye-atom-from-db [uname]
+  )
 
-(defn- load-state [name]
-  (log/info "first day load")
-  (persistence/load-current-iyye name)
-  (nouns/add-word "iyye.name" #(list name) nil)
-  (resource/load-day!)
-  (iolist/load-io-state))
+(defn load-iyye-type-from-db [name]
+  )
 
-(defn- init-state [name]
-  (log/info "first day")
-  (nouns/add-word "iyye.name" #(list name) nil)
-  (persistence/set-current-iyye name))
+;(dosync (alter types-words conj type))
+;(persistence/write-noun-to-db (into {} type))
 
-(defn usage [options-summary]
-  (->> ["Usage: iyye action/option"
-        ""
-        "Options:"
-        options-summary
-        ""
-        "Actions:"
-        "  list    list IYYE"
-        "  load     load IYYE"
-        "  create   create IYYE"
-        ""]
-       (str/join \newline)))
+(defrecord Iyye_Relation [atom Reason Types Function])
 
-(def cli-options
-  ;; An option with a required argument
-  [["-n" "--name IYYE" "IYYE name"
-    :default "new"]
-   ;   :validate [#(iyye-exists? %) "Does not exist"]]
-   ["-h" "--help"]])
+(defn create-iyye-relation [Name AccordingTo Reason When Types Function]
+  (let [action-atom (create-iyye-atom Name AccordingTo When @relations-words)
+        relation (->Iyye_Relation action-atom Reason Types Function)]
+    relation))
 
-(defn error-msg [errors]
-  (str "The following errors occurred while parsing your command:\n\n"
-       (str/join \newline errors)))
+(defrecord Iyye_Instance [atom type])
 
-(defn validate-args
-  "Validate command line arguments. Either return a map indicating the program
-  should exit (with a error message, and optional ok status), or a map
-  indicating the action the program should take and the options provided."
-  [args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
-    ;       (println "opt:" options "args:" arguments "err:" errors "summary:" summary)
-    (cond
-      (:help options) ; help => exit OK with usage summary
-      {:exit-message (usage summary) :ok? true}
+(defn create-iyye-instance [values])
 
-      errors ; errors => exit with description of errors
-      {:exit-message (error-msg errors)}
+;(dosync (alter relations-words conj relation))
+;(persistence/write-action-to-db (conj (into {} (:atom 8action)) (dissoc (into {} action) :atom)))
+;
+; (defn write-to-db [atom]
+;  (persistence/write-knowledge-to-db (conj (into {} (:atom action)) (dissoc (into {} action) :atom))))
 
-      (and (= 1 (count arguments))
-           (#{"create" "list" "load"} (first arguments)))
-      {:action (first arguments) :options options}
-      :else ; failed custom validation => exit with usage summary
-      {:exit-message (usage summary)})))
+;(defn ^{:source "(+ 1 a)"} aaa [a] (+ 1 a))
+;(defmacro getsrc [func] `(:source (meta (var ~func))))
 
-(defn exit [status msg]
-  (println msg)
-  (System/exit status))
+(defn iyye_is_type_function [p1 p2]
+  (let [p2-type (load-iyye-type-from-db p2)
+        newtype (if p2-type p2-type (create-iyye-type p2 :IYE :ALWAYS p1 []))])
 
-(defn -main [& args]
-  (let [{:keys [action options exit-message ok?]} (validate-args args)]
-    (if exit-message
-      (exit (if ok? 0 1) exit-message)
-      (case action
-        "list"   (doall (println (persistence/list-iyye) ) (exit 0 ""))
-        "create" (if (persistence/iyye-exists? (:name options)) (exit -1 "Already exists") (init-state (:name options)))
-        "load"  (if (persistence/iyye-exists? (:name options)) (load-state (:name options)) (exit -1 "Does not exist")))))
+  )
 
-  (doall  (iolist/init-io))
-  (nouns/add-word "iyye.days" #(list @resource/num-days) nil)
-  ; Start in a thread so that I can use REPL too
-  (task/start-task main-task))
+(defn iyye_consists_function [p1 p2]
+  (let [])
+  )
+
+(def iyye_is_type (ref 0))
+(def iyye_consists_type (ref 0))
+
+(defn action [cmd params IO]
+  (let [actions
+        (for [action @action-words :when (= (:Name action) cmd)]
+          action)]
+    (case (count actions)
+      0 (ioframes/process-output IO (str "failed to parse: no matching action to " cmd))
+      1 (let [action (first actions)]
+          (if (compare params (:Types action))
+            ((:Function action) params)
+            (ioframes/process-output IO (str "failed to parse: types mismatch " cmd ": " action ":" params))))
+      (ioframes/process-output IO (str "failed to parse: too many matched action to " cmd ": " actions)))))
+
+(defn- init-builtins-kb []
+  (let [is (create-iyye-relation "is" :IYE :AXIOM :ALWAYS [] iyye_is_type_function)
+        consistsof (create-iyye-relation "consists" :IYE :AXIOM :ALWAYS [] iyye_consists_function)]
+    (dosync (ref-set iyye_is_type is))
+    (dosync (ref-set iyye_consists_type consistsof))
+    ))
+
+  (defn init-kb []
+    (init-builtins-kb)
+    ; (dosync (alter noun-words conj iyye_concept))
+
+    ;(dorun (map #(do ( persistence/write-fact-to-db (into {} %))) @action-words))
+    )
+
+(defn load-init-kb []
+  (init-builtins-kb)
+  (dosync (alter relations-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
+  (dosync (alter types-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "nouns" {:When :ALWAYS})))
+
+  )
+
+
+; (apply str (rest (str (:When {:When :ALWAYS}))))
