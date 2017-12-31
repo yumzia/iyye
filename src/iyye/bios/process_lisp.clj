@@ -35,7 +35,8 @@
     ;    (println "processing" cmd)
     (if cmd
       (dorun (scwords/action cmd params IO))
-      (ioframes/process-output IO (str "failed to parse: " input))))
+      (future (Thread/sleep 500) (ioframes/process-output IO (str "failed to parse: " input)))
+      ))
   )
 
 (defn process-lispy-ctrl-input [IO input]
