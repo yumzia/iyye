@@ -14,82 +14,121 @@
 ; You should have received a copy of the GNU Affero General Public License
 ; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(ns iyye.bios.words
-   (:require [clojure.string :as str]
-             [iyye.bios.ioframes :as ioframes]
-             [iyye.bios.task :as task]
-             [iyye.bios.noun-words :as nouns]))
+(ns iyye.subcon.knowledge.words
+  (:require
+    [clojure.tools.logging :as log]
+    [iyye.bios.ioframes :as ioframes]
+    [iyye.bios.persistence :as persistence]
+    ;[iyye.subcon.knowledge.relation :as relation]
+    ))
 
-(defrecord action-word [word function async-function-task])
+(def relations-words (ref []))
+(def types-words (ref []))
+(def instances-words (ref []))
+(def adjective-words (ref []))
+(def action-words (ref []))
 
-(defn list-func [IO arg]
-  (let [noun-names (pr-str (map :word @nouns/noun-words-list))]
- (ioframes/process-output IO (str "list of nouns: " noun-names))))
+(defrecord Iyye_Predicate [AccordingTo When Time Prob])
 
-(defn getter-func [IO arg]
-  (let [name (first arg)]
-    (let [matches
-          (for [noun @nouns/noun-words-list :when (= (:word noun) name)]
-            noun)]
-      (case (count matches)
-        0 (ioframes/process-output IO (str "failed to parse: no matching getter for " name))
-        1 (let [action (first matches)
-                result ((:getter-function action))]
-          (ioframes/process-output IO (str "The value of " name " is " result)))
-        (ioframes/process-output IO (str "failed to parse: too many matched getters to " name))))))
+(defrecord Iyye_Atom [Name Uname predicate])
 
-(defn setter-func [IO arg]
-  (if (not= 2 (count arg))
-    (ioframes/process-output IO (str "Can't set, need 2 arguments")))
-  (let [name (first arg)
-        value (second arg)]
-    (let [matches
-          (for [noun @nouns/noun-words-list :when (= (:word noun) name)]
-            noun)]
-      (case (count matches)
-        0 (ioframes/process-output IO (str "failed to parse: no matching setter for " name))
-        1 (let [action (first matches)
-                func (:setter-function action)]
-            (if func
-              (ioframes/process-output IO (str "Set " name " to " value " " (func value)))
-              (ioframes/process-output IO (str "Can't set " name " to " value))))
-        (ioframes/process-output IO (str "failed to parse: too many matched setters to " name))))))
+(defn create-iyye-atom [name according when words-list]
+  (let [Time (persistence/current-time-to-string)
+        uname (str name (count words-list))
+        atom (->Iyye_Atom name uname (->Iyye_Predicate according when Time 1.0))]
+    atom))
 
-(defn shutdown-func [IO arg]
-  (ioframes/process-output IO (str "Shutting down!"))
-  (task/shutdown))
+(defrecord Iyye_Type [atom SubtypeOf Subtypes Predicates])
 
-(defn pause-func [IO arg]
-  (task/pause)
-  (ioframes/process-output IO (str "Paused")))
+(defn create-iyye-type [Name AccordingTo When SubtypeOf Subtypes]
+  (let [type-atom (create-iyye-atom Name AccordingTo When types-words)
+        type (->Iyye_Type type-atom SubtypeOf Subtypes [])]
+    type))
 
-(defn resume-func [IO arg]
-  (task/resume)
-  (ioframes/process-output IO (str "Resumed")))
+(defn load-iyye-atom-from-db [uname]
+  )
 
-(defn help-func [IO arg]
-  (ioframes/process-output IO (str "Available actions: list, get, set, shutdown, pause, resume, help")))
+(defn load-iyye-type-from-db [name]
+  )
 
-(def list-action (action-word. "list" list-func nil))
-(def get-action (action-word. "get" getter-func nil))
-(def set-action (action-word. "set" setter-func nil))
-(def shutdown-action (action-word. "shutdown" shutdown-func nil))
-(def pause-action (action-word. "pause" pause-func nil))
-(def resume-action (action-word. "resume" resume-func nil))
-(def help-action (action-word. "help" help-func nil))
+;(dosync (alter types-words conj type))
+;(persistence/write-noun-to-db (into {} type))
 
-; FIXME to add runtime configuring
-(def action-words (ref (list get-action set-action shutdown-action pause-action resume-action help-action list-action)))
+(defrecord Iyye_Relation [atom Reason Types Function])
+
+(defn create-iyye-relation [Name AccordingTo Reason When Types Function]
+  (let [action-atom (create-iyye-atom Name AccordingTo When @relations-words)
+        relation (->Iyye_Relation action-atom Reason Types Function)]
+    relation))
+
+(defrecord Iyye_Instance [atom type])
+
+(defn create-iyye-instance [values])
+
+;(dosync (alter relations-words conj relation))
+;(persistence/write-action-to-db (conj (into {} (:atom 8action)) (dissoc (into {} action) :atom)))
+;
+; (defn write-to-db [atom]
+;  (persistence/write-knowledge-to-db (conj (into {} (:atom action)) (dissoc (into {} action) :atom))))
+
+;(defn ^{:source "(+ 1 a)"} aaa [a] (+ 1 a))
+;(defmacro getsrc [func] `(:source (meta (var ~func))))
+
+(defn iyye_is_type_function [p1 p2]
+  (let [p2-type (load-iyye-type-from-db p2)
+        newtype (if p2-type p2-type (create-iyye-type p2 :IYE :ALWAYS p1 []))])
+
+  )
+
+(defn iyye_consists_function [p1 p2]
+  (let [])
+  )
+
+(defn iyye_instance_function [p1 name]
+  (let [])
+  )
+
+(def iyye_is_type (ref 0))
+(def iyye_consists_type (ref 0))
+(def iyye_create_instance (ref 0))
 
 (defn action [cmd params IO]
   (let [actions
-        (for [action @action-words :when (= (:word action) cmd)]
-            action)]
+        (for [action @action-words :when (= (:Name action) cmd)]
+          action)]
     (case (count actions)
       0 (ioframes/process-output IO (str "failed to parse: no matching action to " cmd))
       1 (let [action (first actions)]
-          (if (:async-function-task action)
-            (task/run-off-task (:async-function-task action) params)
-            ((:function action) IO params)))
+          (if (compare params (:Types action))
+            ((:Function action) params)
+            (ioframes/process-output IO (str "failed to parse: types mismatch " cmd ": " action ":" params))))
       (ioframes/process-output IO (str "failed to parse: too many matched action to " cmd ": " actions)))))
 
+(defn- init-builtins-kb []
+  (let [t_is (create-iyye-relation "is" :IYE :AXIOM :ALWAYS [] iyye_is_type_function)
+        consistsof (create-iyye-relation "consists" :IYE :AXIOM :ALWAYS [] iyye_consists_function)
+        instof (create-iyye-relation "instance of" :IYE :AXIOM :ALWAYS [] iyye_instance_function)]
+    (dosync (ref-set iyye_is_type t_is))
+    (dosync (ref-set iyye_consists_type consistsof))
+    (dosync (ref-set iyye_create_instance instof))
+    ; (dosync (alter noun-words conj iyye_concept))
+    ;(dorun (map #(do ( persistence/write-fact-to-db (into {} %))) @action-words))
+    ))
+
+(defn- init-db-kb []
+  (let []
+    (dosync (alter relations-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
+    (dosync (alter types-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {:When :ALWAYS})))
+    ))
+
+(defn load-init-kb []
+  (init-builtins-kb)
+  (init-db-kb)
+
+  )
+
+(defn init-kb []
+  (init-builtins-kb)
+  )
+
+; (apply str (rest (str (:When {:When :ALWAYS}))))
