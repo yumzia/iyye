@@ -22,6 +22,9 @@
 
 (defrecord action-word [word function async-function-task])
 
+(defn list-func [IO arg]
+  (let [noun-names (pr-str (map :word @nouns/noun-words-list))]
+ (ioframes/process-output IO (str "list of nouns: " noun-names))))
 
 (defn getter-func [IO arg]
   (let [name (first arg)]
@@ -64,15 +67,19 @@
   (task/resume)
   (ioframes/process-output IO (str "Resumed")))
 
+(defn help-func [IO arg]
+  (ioframes/process-output IO (str "Available actions: list, get, set, shutdown, pause, resume, help")))
+
+(def list-action (action-word. "list" list-func nil))
 (def get-action (action-word. "get" getter-func nil))
 (def set-action (action-word. "set" setter-func nil))
 (def shutdown-action (action-word. "shutdown" shutdown-func nil))
 (def pause-action (action-word. "pause" pause-func nil))
 (def resume-action (action-word. "resume" resume-func nil))
-
+(def help-action (action-word. "help" help-func nil))
 
 ; FIXME to add runtime configuring
-(def action-words (ref (list get-action set-action shutdown-action pause-action resume-action)))
+(def action-words (ref (list get-action set-action shutdown-action pause-action resume-action help-action list-action)))
 
 (defn action [cmd params IO]
   (let [actions
