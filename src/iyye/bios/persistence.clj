@@ -1,4 +1,4 @@
- ; Iyye - AI agent
+; Iyye - AI agent
 ; Copyright (C) 2016-2017  Sasha Yumzya
 
 ; This program is free software: you can redistribute it and/or modify
@@ -42,11 +42,9 @@
 (defn set-current-iyye [name]
   (dorun
     [(add-iyye name)
-    (println "iyye name is : " name)
     (dosync (ref-set iyye-name name))]))
 
 (defn load-current-iyye [name]
-  (println "iyye name is : " name)
   (dosync (ref-set iyye-name name)))
 
 (defn record-day [day-num]
@@ -57,8 +55,25 @@
 (defn load-days []
   (mongo/get-count iyye-main (str "days_" @iyye-name) {}))
 
+(defn current-time-to-string []
+  (str (.format (java.text.SimpleDateFormat. "MM_dd_yyyy_HH_mm_ss") (java.util.Date.))))
+
 (defn write-io-to-db [days IO dir input]
   (let [doc (str "IO_day_" days)
         dbname (str @iyye-name "_IO_" (:name IO))
-        entry {:time (str (.format (java.text.SimpleDateFormat. "MM_dd_yyyy_HH_mm_ss") (java.util.Date.))) dir input}]
+        entry {:time current-time-to-string dir input}]
     (mongo/add-entry dbname doc entry)))
+
+
+ (defn write-knowledge-to-db [doc-name fact]
+   (let [dbname (str @iyye-name "_knowledge")
+         doc doc-name]
+     (println "writing to DB:" fact)
+     (mongo/add-entry dbname doc fact)))
+
+; (apply str (rest (str (:When {:When :ALWAYS}))))
+
+(defn read-knowledge-from-db [doc-name query]
+  (let [dbname (str @iyye-name "_knowledge")]
+    (mongo/get-entry dbname doc-name query)))
+
