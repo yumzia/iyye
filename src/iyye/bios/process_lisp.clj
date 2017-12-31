@@ -18,7 +18,8 @@
    (:require [clojure.string :as str]
              [iyye.bios.parse-lisp :as parse]
              [iyye.bios.ioframes :as ioframes]
-             [iyye.bios.words :as words]))
+             [iyye.bios.words :as words]
+             [iyye.subcon.knowledge.words :as scwords]))
 
 (defn process-control [tree input IO]
   (let [cmd (first tree)
@@ -28,15 +29,26 @@
       (dorun (words/action cmd params IO))
       (ioframes/process-output IO (str "failed to parse: " input)))))
 
+(defn process-lispy-control [tree input IO]
+  (let [cmd (first tree)
+        params (for [cur (rest tree)] (if (seq? cur) (process-lispy-control cur "substr" IO) cur))]
+    ;    (println "processing" cmd)
+    (if cmd
+      (dorun (scwords/action cmd params IO))
+      (ioframes/process-output IO (str "failed to parse: " input))))
+  )
+
 (defn process-lispy-ctrl-input [IO input]
   (let [tree (parse/get-syntax-tree input)]
-    (future (Thread/sleep 1000)
+    (future (Thread/sleep 500)
             (process-control tree input IO))))
 
 (defn process-lispy-input [IO input]
   (if (= \# (first input))
     (process-lispy-ctrl-input IO (subs input 1))
-    (future (Thread/sleep 1000) (ioframes/process-output IO "parsing lispy sentences not implemented yet"))))
+    ;(future (Thread/sleep 1000) (ioframes/process-output IO "parsing lispy sentences not implemented yet"))
+    (let [tree (parse/get-syntax-tree input)]
+      (future (process-lispy-control tree input IO)))))
 
 (defn process-input [IO input]
    (if (= input "What is answer to life, the universe and everything?")
