@@ -1,0 +1,16 @@
+Start mongod
+Run clojure -main at iyye.bios.core
+parameters - help - show this help
+list - list existing configs names
+create - create new config
+load - load existing config
+to create and load config, there should be a name given with --name name
+e.g. REPL (iyye.bios.core/-main "create" "--name" "test2")
+On start, it creates a control chat at 127.0.0.1:8080/chat/iyye
+
+In the chat it listens for 3 types of input:
+Simple English (not implemented)
+Syntax tree lispy input, preceeded by # (partially implemented)
+Syntax tree with pre-defined low level command set, preceeded by ##
+
+
