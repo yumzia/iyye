@@ -90,6 +90,7 @@
 
 (def iyye_is_type (ref 0))
 (def iyye_consists_type (ref 0))
+(def iyye_create_instance (ref 0))
 
 (defn action [cmd params IO]
   (let [actions
@@ -109,6 +110,7 @@
         instof (create-iyye-relation "instance of" :IYE :AXIOM :ALWAYS [] iyye_instance_function)]
     (dosync (ref-set iyye_is_type t_is))
     (dosync (ref-set iyye_consists_type consistsof))
+    (dosync (ref-set iyye_create_instance instof))
     ; (dosync (alter noun-words conj iyye_concept))
     ;(dorun (map #(do ( persistence/write-fact-to-db (into {} %))) @action-words))
     ))
@@ -125,5 +127,8 @@
 
   )
 
+(defn init-kb []
+  (init-builtins-kb)
+  )
 
 ; (apply str (rest (str (:When {:When :ALWAYS}))))
