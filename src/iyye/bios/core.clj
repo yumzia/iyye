@@ -20,7 +20,7 @@
             [iyye.bios.persistence :as persistence]
             [iyye.bios.noun-words :as nouns]
             [iyye.bios.task :as task]
-            [iyye.subcon.knowledge.words :as kb]
+            [iyye.subcon.knowledge.builtins :as kb]
             [clojure.tools.logging :as log]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as str]
