@@ -22,15 +22,16 @@
     ;[iyye.subcon.knowledge.relation :as relation]
     ))
 
+(def action-words (ref []))
+(def noun-words (ref []))
 (def types-words (ref []))
 (def relations-words (ref []))
 (def instances-words (ref []))
 (def adjective-words (ref []))
-(def action-words (ref []))
 
 (defrecord Iyye_ModalPredicate [AccordingTo When Time Prob])
 (defrecord Iyye_Atom [Name Uname])
-(defrecord Iyye_Relation [atom Predicate Inputs Function])
+(defrecord Iyye_Relation [atom Predicate Types Function])
 (defrecord Iyye_Type [atom SubtypeOf Subtypes])
 (defrecord Iyye_Instance [atom type])
 
@@ -50,27 +51,32 @@
         relation (->Iyye_Relation action-atom Reason Types Function)]
     relation))
 
+(defn create-iyye-instance [values])
+
 (defn load-iyye-atom-from-db [uname]
   )
 
 (defn load-iyye-type-from-db [name]
   )
 
+(defn get-iyye-type [name]
+  (if ()
+    ()
+    (load-iyye-type-from-db name))
+  )
+
 ;(dosync (alter types-words conj type))
 ;(persistence/write-noun-to-db (into {} type))
 
 
-(defn create-iyye-instance [values])
-
-
 (defn action [cmd params IO]
   (let [actions
-        (for [action @action-words :when (= (:Name action) cmd)]
-          action)]
+        (for [action @action-words :when (= (:Name action) cmd)] action)
+        params-list (map #(for [word @noun-words :when (= (:Name word) %)] word) params)]
     (case (count actions)
       0 (ioframes/process-output IO (str "failed to parse: no matching action to " cmd))
       1 (let [action (first actions)]
-          (if (compare params (:Types action))
+          (if (compare (map :Type params-list) (:Types action))
             ((:Function action) params)
             (ioframes/process-output IO (str "failed to parse: types mismatch " cmd ": " action ":" params))))
       (ioframes/process-output IO (str "failed to parse: too many matched action to " cmd ": " actions)))))
