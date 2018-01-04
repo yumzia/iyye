@@ -24,15 +24,15 @@
 
 (def action-words (ref []))
 (def noun-words (ref []))
-(def types-words (ref []))
-(def relations-words (ref []))
+;(def types-words (ref []))
+;(def relations-words (ref []))
 (def instances-words (ref []))
 (def adjective-words (ref []))
 
 (defrecord Iyye_ModalPredicate [AccordingTo When Time Prob])
 (defrecord Iyye_Atom [Name Uname])
-(defrecord Iyye_Relation [atom Predicate Types Function])
-(defrecord Iyye_Type [atom SubtypeOf Subtypes])
+(defrecord Iyye_Relation [atom Predicate Types Function Data])
+(defrecord Iyye_Type [atom Relations])
 (defrecord Iyye_Instance [atom type])
 
 (defn create-iyye-atom [name words-list]
@@ -42,41 +42,72 @@
     atom))
 
 (defn create-iyye-type [Name]
-  (let [type-atom (create-iyye-atom Name types-words)
-        type (->Iyye_Type type-atom [] [])]
+  (let [type-atom (create-iyye-atom Name noun-words)
+        type (->Iyye_Type type-atom [])]
     type))
 
 (defn create-iyye-relation [Name AccordingTo Reason When Types Function]
-  (let [action-atom (create-iyye-atom Name @relations-words)
-        relation (->Iyye_Relation action-atom Reason Types Function)]
+  (let [action-atom (create-iyye-atom Name @noun-words)
+        relation (->Iyye_Relation action-atom Reason Types Function [])]
     relation))
 
 (defn create-iyye-instance [values])
 
-(defn load-iyye-atom-from-db [uname]
+(defn load-iyye-atom-from-db [uname])
+
+(defn load-iyye-types-from-db [name]
   )
 
-(defn load-iyye-type-from-db [name]
+(defn load-iyye-relations-from-db [name]
   )
 
-(defn get-iyye-type [name]
-  (if ()
-    ()
-    (load-iyye-type-from-db name))
+(defn get-iyye-types [name]
+  (let [builtin-types #(for [word @noun-words :when (= (:Name word) name)] word)
+        loaded-types (load-iyye-types-from-db name)]
+      (if (empty? builtin-types)
+        (if (empty? loaded-types)
+          :UNKNOWN
+          loaded-types)
+        (if (empty? loaded-types)
+          builtin-types
+          (apply conj builtin-types loaded-types)))))
+
+(defn set-iyye-type! [type]
   )
+
+(defn get-iyye-relations [name]
+  (let [builtin-relations #(for [word @action-words :when (= (:Name word) name)] word)
+        loaded-relations (load-iyye-relations-from-db name)]
+    (if (empty? builtin-relations)
+      (if (empty? loaded-relations)
+        :UNKNOWN
+        loaded-relations)
+      (if (empty? loaded-relations)
+        builtin-relations
+        (apply conj builtin-relations loaded-relations)))))
+
+(defn check-params [action params]
+  (let [act-params (:Types action)]
+  (compare act-params (map #(:Name (:atom %)) params))))
 
 ;(dosync (alter types-words conj type))
 ;(persistence/write-noun-to-db (into {} type))
 
+(defn apply-relation [relation params]
+  (when (check-params relation params)
+    ((:Function relation) params)))
 
 (defn action [cmd params IO]
-  (let [actions
-        (for [action @action-words :when (= (:Name action) cmd)] action)
-        params-list (map #(for [word @noun-words :when (= (:Name word) %)] word) params)]
-    (case (count actions)
+  (let [actions-list (get-iyye-relations cmd)
+        params-list (map get-iyye-types params)]
+    (case (count actions-list)
       0 (ioframes/process-output IO (str "failed to parse: no matching action to " cmd))
-      1 (let [action (first actions)]
-          (if (compare (map :Type params-list) (:Types action))
-            ((:Function action) params)
+      1 (let [action (first actions-list)]
+          (when (not (apply-relation action params-list))
             (ioframes/process-output IO (str "failed to parse: types mismatch " cmd ": " action ":" params))))
-      (ioframes/process-output IO (str "failed to parse: too many matched action to " cmd ": " actions)))))
+
+      (let [matching-actions (for [action @actions-list :when (check-params action params-list)] action)]
+        (if (empty? matching-actions)
+          (ioframes/process-output IO (str "failed to parse: no many matched parameters to " cmd ": " actions-list))
+          ((:Function (first matching-actions)) params-list))))))                     ; FIXME Yumzya first
+
