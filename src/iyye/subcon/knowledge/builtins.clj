@@ -33,10 +33,28 @@
 (def iyye_consists_type (ref 0))
 (def iyye_create_instance (ref 0))
 
-(defn iyye_is_type_function [p1 p2]
-  (let [p2-type (words/load-iyye-type-from-db p2)
-        newtype (if p2-type p2-type (words/create-iyye-type p2))])
-  )
+(defn iyye_is_type_function [p1-types p2-types]
+    (when (and (not(empty? p1-types)) (not(empty? p2-types)))
+      (let [p1-type (first p1-types)                        ; FIXME Yumzya first
+            p2-type (first p2-types)
+
+            p1-supertypes (assoc @iyye_is_type :Data {:super (:Name (:atom p2-type))})
+            p2-subtypes (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
+            new-p1-type (assoc p1-type :Relations p1-supertypes)
+            new-p2-type (assoc p2-type :Relations p2-subtypes)]
+      (do
+        (words/set-iyye-type! new-p1-type)
+        (words/set-iyye-type! new-p2-type)))))
+
+(defn iyye_is_type_create_function [p1 p2]
+  (let [p1-type (words/create-iyye-type p1)
+        p2-type (words/get-iyye-types p2)]
+    (when (and p1-type p2-type)
+      (let [new-p1-type (assoc p1-type :Relations (conj (:Relations p1-type) ))])
+      (do
+        ()
+        ()
+        ()))))
 
 (defn iyye_consists_function [p1 p2]
   (let [])
@@ -47,7 +65,7 @@
   )
 
 ;(dosync (alter relations-words conj relation))
-;(persistence/write-action-to-db (conj (into {} (:atom 8action)) (dissoc (into {} action) :atom)))
+;(persistence/write-action-to-db (conj (into {} (:atom action)) (dissoc (into {} action) :atom)))
 ;
 ; (defn write-to-db [atom]
 ;  (persistence/write-knowledge-to-db (conj (into {} (:atom action)) (dissoc (into {} action) :atom))))
@@ -60,45 +78,44 @@
         ai (words/create-iyye-type "ai")
         iyye (words/create-iyye-type "iyye")
         human (words/create-iyye-type "human")
-        yumzya (words/create-iyye-type "yumzya")
-        ]
+        yumzya (words/create-iyye-type "yumzya")]
     (dosync (ref-set iyye_actor actor))
     (dosync (ref-set iyye_ai ai))
     (dosync (ref-set iyye_iyye iyye))
     (dosync (ref-set iyye_human human))
-    (dosync (ref-set iyye_yumzya yumzya))))
+    (dosync (ref-set iyye_yumzya yumzya))
+    (dosync (alter words/noun-words conj actor ai iyye human yumzya))))
 
 (defn- init-builtin-relations []
-  (let [t_is (words/create-iyye-relation "is" :IYE :AXIOM :ALWAYS [] iyye_is_type_function)
+  (let [t_is (words/create-iyye-relation "is" :IYE :AXIOM :ALWAYS ["type" "type"] iyye_is_type_function)
+        t_is2 (words/create-iyye-relation "is" :IYE :AXIOM :ALWAYS [:UNKNOWN "type"] iyye_is_type_create_function)
         consistsof (words/create-iyye-relation "consists" :IYE :AXIOM :ALWAYS [] iyye_consists_function)
-        instof (words/create-iyye-relation "instance of" :IYE :AXIOM :ALWAYS [] iyye_instance_function)
-        ]
-
+        instof (words/create-iyye-relation "instance" :IYE :AXIOM :ALWAYS [] iyye_instance_function)]
     (dosync (ref-set iyye_is_type t_is))
     (dosync (ref-set iyye_consists_type consistsof))
-    (dosync (ref-set iyye_create_instance instof))))
+    (dosync (ref-set iyye_create_instance instof))
+    (dosync (alter words/action-words conj t_is t_is2 consistsof instof))))
+
 
 (defn- apply-builtin-relations []
-
-    )
-
+  (do
+    ((:Function @iyye_is_type) @iyye_ai @iyye_actor)
+    ((:Function @iyye_is_type) @iyye_human @iyye_actor)
+    ((:Function @iyye_is_type) @iyye_iyye @iyye_ai)
+    ((:Function @iyye_is_type) @iyye_yumzya @iyye_human)))
 
 (defn- init-builtins-kb []
   (init-builtin-words)
   (init-builtin-relations)
-  (apply-builtin-relations)
+  (apply-builtin-relations))
 
-    ; (dosync (alter noun-words conj iyye_concept))
-    ;(dorun (map #(do ( persistence/write-fact-to-db (into {} %))) @action-words))
-    )
-
+;(dorun (map #(do ( persistence/write-fact-to-db (into {} %))) @action-words))
 ; (apply str (rest (str (:When {:When :ALWAYS}))))
-
 
 (defn- init-db-kb []
   (let []
-    (dosync (alter words/relations-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
-    (dosync (alter words/types-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {:When :ALWAYS})))
+    (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
+    (dosync (alter words/noun-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {:When :ALWAYS})))
     ; others
     ))
 
