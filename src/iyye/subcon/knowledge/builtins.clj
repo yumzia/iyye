@@ -33,8 +33,21 @@
 (def iyye_consists_type (ref 0))
 (def iyye_create_instance (ref 0))
 
+(defn iyye_is_type_predicate_function [p1-types p2-types]
+  (when (and (not(empty? p1-types))
+             (not(empty? p2-types)))
+    (let [p1-type (first p1-types)                        ; FIXME Yumzya first
+          p2-type (first p2-types)
+          p1-name (:Name (:atom p1-type))
+          p2-name (:Name (:atom p2-type))
+          p1-data (:Data p1-type)
+          p2-data (:Data p2-type)]
+      (and (= p1-name (:super p2-data))
+           (= p2-name (:sub p1-data))))))
+
 (defn iyye_is_type_function [p1-types p2-types]
-    (when (and (not(empty? p1-types)) (not(empty? p2-types)))
+    (when (and (not(empty? p1-types))
+               (not(empty? p2-types)))
       (let [p1-type (first p1-types)                        ; FIXME Yumzya first
             p2-type (first p2-types)
 
@@ -46,9 +59,8 @@
         (words/set-iyye-type! new-p1-type)
         (words/set-iyye-type! new-p2-type)))))
 
-(defn iyye_is_type_create_function [p1 p2]
-  (let [p1-type (words/create-iyye-type p1)
-        p2-type (words/get-iyye-types p2)]
+(defn iyye_is_type_create_function [p1-name p2-type]
+  (let [p1-type (words/create-iyye-type p1-name)]
     (when (and p1-type p2-type)
       (let [new-p1-type (assoc p1-type :Relations (conj (:Relations p1-type) ))])
       (do
@@ -73,6 +85,11 @@
 ;(defn ^{:source "(+ 1 a)"} aaa [a] (+ 1 a))
 ;(defmacro getsrc [func] `(:source (meta (var ~func))))
 
+(defn create-iyye-builtin-relation [name types func pred-func]
+  (words/create-iyye-relation name
+                              (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/current-time-to-string) :ALWAYS)
+                              types func pred-func))
+
 (defn- init-builtin-words []
   (let [actor (words/create-iyye-type "actor")
         ai (words/create-iyye-type "ai")
@@ -87,10 +104,10 @@
     (dosync (alter words/noun-words conj actor ai iyye human yumzya))))
 
 (defn- init-builtin-relations []
-  (let [t_is (words/create-iyye-relation "is" :IYE :AXIOM :ALWAYS ["type" "type"] iyye_is_type_function)
-        t_is2 (words/create-iyye-relation "is" :IYE :AXIOM :ALWAYS [:UNKNOWN "type"] iyye_is_type_create_function)
-        consistsof (words/create-iyye-relation "consists" :IYE :AXIOM :ALWAYS [] iyye_consists_function)
-        instof (words/create-iyye-relation "instance" :IYE :AXIOM :ALWAYS [] iyye_instance_function)]
+  (let [t_is (create-iyye-builtin-relation "is" ["type" "type"] iyye_is_type_function iyye_is_type_predicate_function)
+        t_is2 (create-iyye-builtin-relation "is" [:UNKNOWN "type"] iyye_is_type_create_function iyye_is_type_predicate_function)
+        consistsof (create-iyye-builtin-relation "consists" [] iyye_consists_function iyye_is_type_predicate_function)
+        instof (create-iyye-builtin-relation "instance" ["type"] iyye_instance_function iyye_is_type_predicate_function)]
     (dosync (ref-set iyye_is_type t_is))
     (dosync (ref-set iyye_consists_type consistsof))
     (dosync (ref-set iyye_create_instance instof))
@@ -114,9 +131,9 @@
 
 (defn- init-db-kb []
   (let []
-    (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
-    (dosync (alter words/noun-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {:When :ALWAYS})))
-    ; others
+      (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
+      (dosync (alter words/noun-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {:When :ALWAYS})))
+      ; others
     ))
 
 (defn load-init-kb []
