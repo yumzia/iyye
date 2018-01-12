@@ -36,7 +36,7 @@
 (defrecord Iyye_Instance [atom type])
 
 (defn create-iyye-atom [name words-list & builtin]
-  (let [uname (str name (count words-list))
+  (let [uname (str name (count @words-list))
         b (if (nil? builtin) false (first builtin))
         atom (->Iyye_Atom name uname b)]
     atom))
@@ -47,7 +47,7 @@
     type))
 
 (defn create-iyye-relation [Name Predicate Types Function PredicateFunction & builtin]
-  (let [action-atom (create-iyye-atom Name @noun-words builtin)
+  (let [action-atom (create-iyye-atom Name noun-words builtin)
         relation (->Iyye_Relation action-atom Predicate Types Function PredicateFunction [])]
     relation))
 
@@ -82,7 +82,7 @@
         builtin (:Builtin (:atom type))]
     (when builtin
       (do
-        (dosync (alter noun-words assoc @noun-words uname type))
+        (dosync (alter noun-words assoc @noun-words {uname type}))
         (save-iyye-type-to-db type)))))
 
 (defn check-params [action params]
