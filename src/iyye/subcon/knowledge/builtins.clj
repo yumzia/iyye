@@ -45,13 +45,9 @@
       (and (= p1-name (:super p2-data))                     ; FIXME Yumzia modal logic
            (= p2-name (:sub p1-data))))))
 
-(defn iyye_is_type_function [p1-types p2-types]
-    (when (and (not(empty? p1-types))
-               (not(empty? p2-types)))
-      (let [p1-type (first p1-types)                        ; FIXME Yumzya first
-            p2-type (first p2-types)
-
-            p1-supertypes (assoc @iyye_is_type :Data {:super (:Name (:atom p2-type))})
+(defn iyye_is_type_function [p1-type p2-type]
+    (when (and p1-type p2-type)
+      (let [p1-supertypes (assoc @iyye_is_type :Data {:super (:Name (:atom p2-type))})
             p2-subtypes (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
             new-p1-type (assoc p1-type :Relations p1-supertypes)
             new-p2-type (assoc p2-type :Relations p2-subtypes)]
@@ -105,7 +101,8 @@
     (dosync (ref-set iyye_human human))
     (dosync (ref-set iyye_yumzya yumzya))
     (dosync (alter words/noun-words conj (create-entry actor)
-                   (create-entry ai) (create-entry iyye) (create-entry human) (create-entry yumzya)))))
+                   (create-entry ai) (create-entry iyye) (create-entry human)
+                   (create-entry yumzya)))))
 
 (defn- init-builtin-relations []
   (let [t_is (create-iyye-builtin-relation "is" ["type" "type"] iyye_is_type_function iyye_is_type_predicate_function)
