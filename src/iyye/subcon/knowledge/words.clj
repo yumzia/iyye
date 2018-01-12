@@ -60,57 +60,34 @@
 (defn load-iyye-types-from-db [name]
   (load-iyye-atoms-from-db name "types"))
 
-(defn save-iyye-type-to-db [type]
-  )
-
 (defn load-iyye-relations-from-db [name]
   (load-iyye-atoms-from-db name "relations"))
 
-(defn get-iyye-atoms [name builtins dbname]
-  (let [builtin-types #(for [word @builtins :when (= (:Name word) name)] word)
-        loaded-types (load-iyye-atoms-from-db name dbname)]
-    (if (empty? builtin-types)
-      (if (empty? loaded-types)
-        :UNKNOWN
-        loaded-types)
-      (if (empty? loaded-types)
-        builtin-types
-        (apply conj builtin-types loaded-types)))))
+(defn save-iyye-type-to-db [type]
+  )
+;(persistence/write-noun-to-db (into {} type))
+
+(defn get-iyye-atoms [name builtins]
+  (let [builtin-types (for [word (vals @builtins) :when (= (:Name (:atom word)) name)] word)]
+    (if (empty? builtin-types) :UNKNOWN builtin-types)))
 
 (defn get-iyye-types [name]
-  (get-iyye-atoms name noun-words "types"))
+  (get-iyye-atoms name noun-words))
+
+(defn get-iyye-relations [name]
+  (get-iyye-atoms name action-words))
 
 (defn set-iyye-type! [type]
   (let [uname (:Uname (:atom type))
         builtin (:Builtin (:atom type))]
-(do (dosync (alter noun-words assoc @noun-words uname type))
     (when builtin
-      (save-iyye-type-to-db type)))
-    ))
-
-; (defn get-iyye-relations [name]
-  ; (let [builtin-relations #(for [word @action-words :when (= (:Name word) name)] word)
-  ;       loaded-relations (load-iyye-relations-from-db name)]
-  ; (if (empty? builtin-relations)
-  ; (if (empty? loaded-relations)
-  ;       :UNKNOWN
-  ;      loaded-relations)
-  ; (if (empty? loaded-relations)
-  ;        builtin-relations
-  ;        (apply conj builtin-relations loaded-relations)))))
-
-(defn get-iyye-relations [name]
-  (let [builtin-relations #(for [word @action-words :when (= (:Name word) name)] word)]
-    (if (empty? builtin-relations)
-      :UNKNOWN
-      builtin-relations)))
+      (do
+        (dosync (alter noun-words assoc @noun-words uname type))
+        (save-iyye-type-to-db type)))))
 
 (defn check-params [action params]
   (let [act-params (:Types action)]
-    (compare act-params (map #(:Name (:atom %)) params))))
-
-  ;(dosync (alter types-words conj type))
-  ;(persistence/write-noun-to-db (into {} type))
+    (compare act-params (map #(:Name (:atom %)) params))))  ; FIXME Yumzya context aware compare
 
 (defn apply-relation [relation params]
   (when (check-params relation params)
