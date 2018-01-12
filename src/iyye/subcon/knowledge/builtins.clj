@@ -42,7 +42,7 @@
           p2-name (:Name (:atom p2-type))
           p1-data (:Data p1-type)
           p2-data (:Data p2-type)]
-      (and (= p1-name (:super p2-data))
+      (and (= p1-name (:super p2-data))                     ; FIXME Yumzia modal logic
            (= p2-name (:sub p1-data))))))
 
 (defn iyye_is_type_function [p1-types p2-types]
@@ -62,11 +62,12 @@
 (defn iyye_is_type_create_function [p1-name p2-type]
   (let [p1-type (words/create-iyye-type p1-name)]
     (when (and p1-type p2-type)
-      (let [new-p1-type (assoc p1-type :Relations (conj (:Relations p1-type) ))])
+      (let [new-p1-type (assoc p1-type :Relations (conj (:Relations p1-type)))
+            p2-subtypes (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
+            new-p2-type (assoc p2-type :Relations p2-subtypes)]
       (do
-        ()
-        ()
-        ()))))
+        (words/set-iyye-type! new-p1-type)
+        (words/set-iyye-type! new-p2-type))))))
 
 (defn iyye_consists_function [p1 p2]
   (let [])
@@ -88,20 +89,23 @@
 (defn create-iyye-builtin-relation [name types func pred-func]
   (words/create-iyye-relation name
                               (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/current-time-to-string) :ALWAYS)
-                              types func pred-func))
+                              types func pred-func true))
+
+(defn- create-entry [entry] {(:Uname (:atom entry)) entry})
 
 (defn- init-builtin-words []
-  (let [actor (words/create-iyye-type "actor")
-        ai (words/create-iyye-type "ai")
-        iyye (words/create-iyye-type "iyye")
-        human (words/create-iyye-type "human")
-        yumzya (words/create-iyye-type "yumzya")]
+  (let [actor (words/create-iyye-type "actor" true)
+        ai (words/create-iyye-type "ai" true)
+        iyye (words/create-iyye-type "iyye" true)
+        human (words/create-iyye-type "human" true)
+        yumzya (words/create-iyye-type "yumzya" true)]
     (dosync (ref-set iyye_actor actor))
     (dosync (ref-set iyye_ai ai))
     (dosync (ref-set iyye_iyye iyye))
     (dosync (ref-set iyye_human human))
     (dosync (ref-set iyye_yumzya yumzya))
-    (dosync (alter words/noun-words conj actor ai iyye human yumzya))))
+    (dosync (alter words/noun-words conj (create-entry actor)
+                   (create-entry ai) (create-entry iyye) (create-entry human) (create-entry yumzya)))))
 
 (defn- init-builtin-relations []
   (let [t_is (create-iyye-builtin-relation "is" ["type" "type"] iyye_is_type_function iyye_is_type_predicate_function)
@@ -111,8 +115,7 @@
     (dosync (ref-set iyye_is_type t_is))
     (dosync (ref-set iyye_consists_type consistsof))
     (dosync (ref-set iyye_create_instance instof))
-    (dosync (alter words/action-words conj t_is t_is2 consistsof instof))))
-
+    (dosync (alter words/action-words conj (create-entry t_is) (create-entry t_is2) (create-entry consistsof) (create-entry instof)))))
 
 (defn- apply-builtin-relations []
   (do
@@ -131,8 +134,9 @@
 
 (defn- init-db-kb []
   (let []
-      (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {:When :ALWAYS})))
-      (dosync (alter words/noun-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {:When :ALWAYS})))
+    (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {}))) ; {:When :ALWAYS}
+    (dosync (alter words/noun-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {} ; {:When :ALWAYS}
+    )))
       ; others
     ))
 
