@@ -35,19 +35,24 @@
 (defrecord Iyye_Type [atom Relations])
 (defrecord Iyye_Instance [atom type])
 
-(defn create-iyye-atom [name words-list & builtin]
-  (let [uname (str name (count @words-list))
+(def atoms-number (ref 0))
+(defn inc-atoms! []
+  (dosync (ref-set atoms-number (inc @atoms-number)))
+  @atoms-number)
+
+(defn create-iyye-atom [name & builtin]
+  (let [uname (str name (inc-atoms!))
         b (if (nil? builtin) false (first builtin))
         atom (->Iyye_Atom name uname b)]
     atom))
 
 (defn create-iyye-type [Name & builtin]
-  (let [type-atom (create-iyye-atom Name noun-words builtin)
+  (let [type-atom (create-iyye-atom Name builtin)
         type (->Iyye_Type type-atom [])]
     type))
 
 (defn create-iyye-relation [Name Predicate Types Function PredicateFunction & builtin]
-  (let [action-atom (create-iyye-atom Name noun-words builtin)
+  (let [action-atom (create-iyye-atom Name builtin)
         relation (->Iyye_Relation action-atom Predicate Types Function PredicateFunction [])]
     relation))
 
@@ -111,6 +116,7 @@
           (func (first matching-actions) params-list)))))) ; FIXME Yumzya first
 
 (defn action [cmd params IO]
+  ; (ioframaes/process-output IO (str " scwords: " cmd))
   (if (= \? (last cmd))
     (run-action (subs cmd 0 (dec (count cmd))) params IO apply-query)
     (run-action cmd params IO apply-relation)))
