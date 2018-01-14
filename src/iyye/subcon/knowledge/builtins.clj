@@ -89,7 +89,7 @@
 
 (defn- create-entry [entry] {(:Uname (:atom entry)) entry})
 
-(defn- init-builtin-words []
+(defn init-builtin-words []
   (let [actor (words/create-iyye-type "actor" true)
         ai (words/create-iyye-type "ai" true)
         iyye (words/create-iyye-type "iyye" true)
@@ -104,7 +104,7 @@
                    (create-entry ai) (create-entry iyye) (create-entry human)
                    (create-entry yumzya)))))
 
-(defn- init-builtin-relations []
+(defn init-builtin-relations []
   (let [t_is (create-iyye-builtin-relation "is" ["type" "type"] iyye_is_type_function iyye_is_type_predicate_function)
         t_is2 (create-iyye-builtin-relation "is" [:UNKNOWN "type"] iyye_is_type_create_function iyye_is_type_predicate_function)
         consistsof (create-iyye-builtin-relation "consists" [] iyye_consists_function iyye_is_type_predicate_function)
@@ -114,7 +114,7 @@
     (dosync (ref-set iyye_create_instance instof))
     (dosync (alter words/action-words conj (create-entry t_is) (create-entry t_is2) (create-entry consistsof) (create-entry instof)))))
 
-(defn- apply-builtin-relations []
+(defn apply-builtin-relations []
   (do
     ((:Function @iyye_is_type) @iyye_ai @iyye_actor)
     ((:Function @iyye_is_type) @iyye_human @iyye_actor)
