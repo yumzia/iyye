@@ -85,10 +85,10 @@
 (defn set-iyye-type! [type]
   (let [uname (:Uname (:atom type))
         builtin (:Builtin (:atom type))]
-    (when builtin
       (do
-        (dosync (alter noun-words assoc @noun-words {uname type}))
-        (save-iyye-type-to-db type)))))
+        (dosync (alter noun-words #(assoc % uname type)))
+        (when (not builtin)
+          (save-iyye-type-to-db type)))))
 
 (defn check-params [action params]
   (let [act-params (:Types action)]
