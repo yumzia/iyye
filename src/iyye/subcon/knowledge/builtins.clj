@@ -47,10 +47,12 @@
 
 (defn iyye_is_type_function [p1-type p2-type]
     (when (and p1-type p2-type)
-      (let [p1-supertypes (assoc @iyye_is_type :Data {:super (:Name (:atom p2-type))})
-            p2-subtypes (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
-            new-p1-type (assoc p1-type :Relations p1-supertypes)
-            new-p2-type (assoc p2-type :Relations p2-subtypes)]
+      (let [p1-supertype (assoc @iyye_is_type :Data {:super (:Name (:atom p2-type))})
+            p2-subtype (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
+            new-p1-type (assoc p1-type :Relations
+                                       (conj (:Relations p1-type) p1-supertype))
+            new-p2-type (assoc p2-type :Relations
+                                       (conj (:Relations p1-type) p2-subtype))]
       (do
         (words/set-iyye-type! new-p1-type)
         (words/set-iyye-type! new-p2-type)))))
