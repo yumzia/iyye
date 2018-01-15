@@ -3,7 +3,7 @@ ai agent/chatbot experiments. see docs/essays and docs/running.txt for more deta
 
 The project has nearly 0% usability at the moment.
 
-Major dependencies: mongodb (or compatible)
+Dependencies: mongodb (or compatible)
 
 I am keeping this repo anonymous, my gpg public key is in docs, gpg key fingerprint is 
 
