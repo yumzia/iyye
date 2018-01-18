@@ -53,7 +53,7 @@
             new-p1-type (assoc p1-type :Relations
                                        (conj (:Relations p1-type) p1-supertype))
             new-p2-type (assoc p2-type :Relations
-                                       (conj (:Relations p1-type) p2-subtype))]
+                                       (conj (:Relations p2-type) p2-subtype))]
       (do
         (words/set-iyye-type! new-p1-type)
         (words/set-iyye-type! new-p2-type))))))
@@ -95,7 +95,7 @@
 
 (defn- create-entry [entry] {(:Uname (:atom entry)) entry})
 
-(defn init-builtin-words []
+(defn- init-builtin-words []
   (let [actor (words/create-iyye-type "actor" true)
         ai (words/create-iyye-type "ai" true)
         iyye (words/create-iyye-type "iyye" true)
