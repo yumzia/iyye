@@ -46,26 +46,30 @@
            (= p2-name (:sub p1-data))))))
 
 (defn iyye_is_type_function [p1-type p2-type]
-    (when (and p1-type p2-type)
-      (let [p1-supertype (assoc @iyye_is_type :Data {:super (:Name (:atom p2-type))})
-            p2-subtype (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
+  (when (and p1-type p2-type)
+    (let [is_type #(words/action-words @iyye_is_type)]
+      (let [p1-supertype (assoc (is_type) :Data {:super (:Name (:atom p2-type))})
+            p2-subtype (assoc (is_type) :Data {:sub (:Name (:atom p1-type))})
             new-p1-type (assoc p1-type :Relations
                                        (conj (:Relations p1-type) p1-supertype))
             new-p2-type (assoc p2-type :Relations
                                        (conj (:Relations p1-type) p2-subtype))]
       (do
         (words/set-iyye-type! new-p1-type)
-        (words/set-iyye-type! new-p2-type)))))
+        (words/set-iyye-type! new-p2-type))))))
 
 (defn iyye_is_type_create_function [p1-name p2-type]
   (let [p1-type (words/create-iyye-type p1-name)]
     (when (and p1-type p2-type)
-      (let [new-p1-type (assoc p1-type :Relations (conj (:Relations p1-type)))
-            p2-subtypes (assoc @iyye_is_type :Data {:sub (:Name (:atom p1-type))})
+      (let [is_type #(words/action-words @iyye_is_type)]
+        (let [new-p1-type (assoc p1-type :Relations
+                                       (conj (:Relations p1-type)))
+            p2-subtypes (assoc (is_type) :Data
+                                             {:sub (:Name (:atom p1-type))})
             new-p2-type (assoc p2-type :Relations p2-subtypes)]
       (do
         (words/set-iyye-type! new-p1-type)
-        (words/set-iyye-type! new-p2-type))))))
+        (words/set-iyye-type! new-p2-type)))))))
 
 (defn iyye_consists_function [p1 p2]
   (let [])
@@ -84,7 +88,7 @@
 ;(defn ^{:source "(+ 1 a)"} aaa [a] (+ 1 a))
 ;(defmacro getsrc [func] `(:source (meta (var ~func))))
 
-(defn create-iyye-builtin-relation [name types func pred-func]
+(defn- create-iyye-builtin-relation [name types func pred-func]
   (words/create-iyye-relation name
                               (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/current-time-to-string) :ALWAYS)
                               types func pred-func true))
@@ -96,32 +100,36 @@
         ai (words/create-iyye-type "ai" true)
         iyye (words/create-iyye-type "iyye" true)
         human (words/create-iyye-type "human" true)
-        yumzya (words/create-iyye-type "yumzya" true)]
-    (dosync (ref-set iyye_actor actor))
-    (dosync (ref-set iyye_ai ai))
-    (dosync (ref-set iyye_iyye iyye))
-    (dosync (ref-set iyye_human human))
-    (dosync (ref-set iyye_yumzya yumzya))
+        yumzya (words/create-iyye-type "yumzya" true)
+        uname #(:Uname (:atom %))]
+    (dosync (ref-set iyye_actor (uname actor)))
+    (dosync (ref-set iyye_ai (uname ai)))
+    (dosync (ref-set iyye_iyye (uname iyye)))
+    (dosync (ref-set iyye_human (uname human)))
+    (dosync (ref-set iyye_yumzya (uname yumzya)))
     (dosync (alter words/noun-words conj (create-entry actor)
                    (create-entry ai) (create-entry iyye) (create-entry human)
                    (create-entry yumzya)))))
 
-(defn init-builtin-relations []
+(defn- init-builtin-relations []
   (let [t_is (create-iyye-builtin-relation "is" ["type" "type"] iyye_is_type_function iyye_is_type_predicate_function)
         t_is2 (create-iyye-builtin-relation "is" [:UNKNOWN "type"] iyye_is_type_create_function iyye_is_type_predicate_function)
         consistsof (create-iyye-builtin-relation "consists" [] iyye_consists_function iyye_is_type_predicate_function)
-        instof (create-iyye-builtin-relation "instance" ["type"] iyye_instance_function iyye_is_type_predicate_function)]
-    (dosync (ref-set iyye_is_type t_is))
-    (dosync (ref-set iyye_consists_type consistsof))
-    (dosync (ref-set iyye_create_instance instof))
+        instof (create-iyye-builtin-relation "instance" ["type"] iyye_instance_function iyye_is_type_predicate_function)
+        uname #(:Uname (:atom %))]
+    (dosync (ref-set iyye_is_type (uname t_is)))
+    (dosync (ref-set iyye_consists_type (uname consistsof)))
+    (dosync (ref-set iyye_create_instance (uname instof)))
     (dosync (alter words/action-words conj (create-entry t_is) (create-entry t_is2) (create-entry consistsof) (create-entry instof)))))
 
-(defn apply-builtin-relations []
-  (do
-    ((:Function @iyye_is_type) @iyye_ai @iyye_actor)
-    ((:Function @iyye_is_type) @iyye_human @iyye_actor)
-    ((:Function @iyye_is_type) @iyye_iyye @iyye_ai)
-    ((:Function @iyye_is_type) @iyye_yumzya @iyye_human)))
+(defn- apply-builtin-relations []
+  (let [get-type #(words/noun-words %)
+        get-function #(:Function (words/action-words %))]
+    (do
+      ((get-function @iyye_is_type) (get-type @iyye_ai) (get-type @iyye_actor))
+      ((get-function @iyye_is_type) (get-type @iyye_human) (get-type @iyye_actor))
+      ((get-function @iyye_is_type) (get-type @iyye_iyye) (get-type @iyye_ai))
+      ((get-function @iyye_is_type) (get-type @iyye_yumzya) (get-type @iyye_human)))))
 
 (defn- init-builtins-kb []
   (init-builtin-words)
