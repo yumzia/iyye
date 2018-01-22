@@ -115,7 +115,9 @@
       (exit (if ok? 0 1) exit-message)
       (case action
         "list"   (doall (println (persistence/list-iyye) ) (exit 0 ""))
-        "create" (if (persistence/iyye-exists? (:name options)) (exit -1 "Already exists") (init-state (:name options)))
+        "create" (if (persistence/iyye-exists? (:name options))
+                   (exit -1 "Already exists")
+                   (init-state (:name options)))
         "load"  (if (persistence/iyye-exists? (:name options)) (load-state (:name options)) (exit -1 "Does not exist")))))
 
   (doall  (iolist/init-io))
