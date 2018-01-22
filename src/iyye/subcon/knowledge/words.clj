@@ -1,5 +1,5 @@
 ; Iyye - AI agent
-; Copyright (C) 2016-2017  Sasha Yumzya
+; Copyright (C) 2016-2018  Sasha Yumzya
 
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU Affero General Public License as
@@ -56,6 +56,15 @@
         relation (->Iyye_Relation action-atom Predicate Types Function PredicateFunction [])]
     relation))
 
+(def time-start (persistence/current-time-to-string))
+(defn get-supertypes [atype]
+  "gets types: self, type, immidiate parents"               ; FIXME Yumzia:0 get all parents
+  (let [rels (:Relations atype)]
+    (conj (for [supertype rels :when (:super (:Data supertype))]
+            {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
+          {:Name "type" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}
+          {:Name (:Name (:atom atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)})))
+
 (defn create-iyye-instance [values])
 
 (defn load-iyye-atom-from-db [uname])
@@ -91,8 +100,18 @@
           (save-iyye-type-to-db type)))))
 
 (defn check-params [action params]
-  (let [act-params (:Types action)]
-    (compare act-params (map #(:Name (:atom %)) params))))  ; FIXME Yumzya context aware compare
+  (let [act-params (:Types action)
+        params-types (map #(get-supertypes %) params)
+        ;   vec-params (vec (map #(:Name (:atom %)) params))
+        pairs (map vector act-params params-types)
+        ok (every? true? (for [cur pairs]
+                  (if (= :UNKNOWN (first cur))
+                    (empty? (second cur))
+                    (some true? (map #(= (first cur) %) (map :Name (second cur)))))))]
+    ;   (future (Thread/sleep 1000) (ioframes/process-output IO (str "okok " ok)))
+    ok)
+    ;(compare act-params vec-params)
+    )  ; FIXME Yumzya context aware compare
 
 (defn apply-relation [relation params]
   (when (check-params relation params)
@@ -104,19 +123,22 @@
 
 (defn- run-action [cmd params IO func]
   (let [actions-list (get-iyye-relations cmd)
-        params-list (map get-iyye-types params)]
+        params-list (apply concat (map get-iyye-types params))]
     (case (count actions-list)
-      0 (ioframes/process-output IO (str "failed to parse: no matching action to " cmd))
-      1 (let [action (first actions-list)]
-          (when (not (func action params-list))
-            (ioframes/process-output IO (str "failed to parse: types mismatch " cmd ": " action ":" params))))
-      (let [matching-actions (for [action @actions-list :when (check-params action params-list)] action)]
-        (if (empty? matching-actions)
-          (ioframes/process-output IO (str "failed to parse: no many matched parameters to " cmd ": " actions-list))
-          (func (first matching-actions) params-list)))))) ; FIXME Yumzya first
+      0 (future (Thread/sleep 1000) (ioframes/process-output IO (str "failed to parse: no matching action to " cmd)))
+      1 (let [action (first actions-list)
+              result (func action params-list)]
+          (if result
+            (future (Thread/sleep 1000) (ioframes/process-output IO (pr-str result)))))
+      (let [matching-actions
+            (for [action actions-list :when (check-params action params-list)] action)
+            nothing (count matching-actions)
+            result (func (first matching-actions) params-list)]
+        (if result
+          (future (Thread/sleep 1000) (ioframes/process-output IO (pr-str result)))
+          (future (Thread/sleep 1000) (ioframes/process-output IO (str "False"))))))))
 
 (defn action [cmd params IO]
-  ; (ioframaes/process-output IO (str " scwords: " cmd))
   (if (= \? (last cmd))
     (run-action (subs cmd 0 (dec (count cmd))) params IO apply-query)
     (run-action cmd params IO apply-relation)))
