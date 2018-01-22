@@ -31,8 +31,8 @@
 
 (defn process-lispy-control [tree input IO]
   (let [cmd (first tree)
-        params (for [cur (rest tree)] (if (seq? cur) (process-lispy-control cur (str cur) IO) cur))]
-    ;    (println "processing" cmd)
+        params (for [cur (rest tree)]
+                 (if (seq? cur) (process-lispy-control cur (str cur) IO) cur))]
     (if cmd
       (dorun (scwords/action cmd params IO))
       (future (Thread/sleep 500) (ioframes/process-output IO (str "failed to parse: " input))))))
