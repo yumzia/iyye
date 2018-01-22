@@ -18,8 +18,7 @@
                                      [clojure.tools.logging :as log]
                                      [iyye.bios.persistence :as persistence]
                                      ;[iyye.subcon.knowledge.relation :as relation]
-                                     [iyye.subcon.knowledge.words :as words]
-                                     ))
+                                     [iyye.subcon.knowledge.words :as words]))
 
 ; Builtin types
 (def iyye_actor (ref 0))
@@ -33,47 +32,41 @@
 (def iyye_consists_type (ref 0))
 (def iyye_create_instance (ref 0))
 
-(defn iyye_is_type_predicate_function [p1-types p2-types]
-  (when (and (not(empty? p1-types))
-             (not(empty? p2-types)))
-    (let [p1-type (first p1-types)                        ; FIXME Yumzya first
-          p2-type (first p2-types)
-          p1-name (:Name (:atom p1-type))
+(defn iyye_is_type_predicate_function [params]
+  (when (= 2 (count params))
+    (let [[p1-type p2-type] params
           p2-name (:Name (:atom p2-type))
-          p1-data (:Data p1-type)
-          p2-data (:Data p2-type)]
-      (and (= p1-name (:super p2-data))                     ; FIXME Yumzia modal logic
-           (= p2-name (:sub p1-data))))))
+          rels1 (:Relations p1-type)]
+      (some true?
+            (for [rel rels1]
+              (= (:super (:Data rel)) p2-name)))))) ; FIXME Yumzia modal logic, FIXME 0 recursive
 
-(defn iyye_is_type_function [p1-type p2-type]
-  (when (and p1-type p2-type)
-    (let [is_type #(words/action-words @iyye_is_type)]
-      (let [p1-supertype (assoc (is_type) :Data {:super (:Name (:atom p2-type))})
-            p2-subtype (assoc (is_type) :Data {:sub (:Name (:atom p1-type))})
-            new-p1-type (assoc p1-type :Relations
-                                       (conj (:Relations p1-type) p1-supertype))
-            new-p2-type (assoc p2-type :Relations
-                                       (conj (:Relations p2-type) p2-subtype))]
+(defn- iyye_add_relation [p1-type p2-type relation]
+  (let [is_type #(words/action-words relation)]
+    (let [p1-supertype (assoc (is_type) :Data {:super (:Name (:atom p2-type))})
+          p2-subtype (assoc (is_type) :Data {:sub (:Name (:atom p1-type))})
+          new-p1-type (assoc p1-type :Relations
+                                     (conj (:Relations p1-type) p1-supertype))
+          new-p2-type (assoc p2-type :Relations
+                                     (conj (:Relations p2-type) p2-subtype))]
       (do
         (words/set-iyye-type! new-p1-type)
-        (words/set-iyye-type! new-p2-type))))))
+        (words/set-iyye-type! new-p2-type)))))
 
-(defn iyye_is_type_create_function [p1-name p2-type]
-  (let [p1-type (words/create-iyye-type p1-name)]
+(defn iyye_is_type_function [params]
+  (let [[p1-type p2-type] params]
     (when (and p1-type p2-type)
-      (let [is_type #(words/action-words @iyye_is_type)]
-        (let [new-p1-type (assoc p1-type :Relations
-                                       (conj (:Relations p1-type)))
-            p2-subtypes (assoc (is_type) :Data
-                                             {:sub (:Name (:atom p1-type))})
-            new-p2-type (assoc p2-type :Relations p2-subtypes)]
-      (do
-        (words/set-iyye-type! new-p1-type)
-        (words/set-iyye-type! new-p2-type)))))))
+      (iyye_add_relation p1-type p2-type @iyye_is_type))))
 
-(defn iyye_consists_function [p1 p2]
-  (let [])
-  )
+(defn iyye_is_type_create_function [params]
+  (let [[p1-name p2-type] params
+        p1-type (words/create-iyye-type p1-name)]
+    (iyye_is_type_function [p1-type p2-type])))
+
+(defn iyye_consists_function [params]
+  (let [[p1-type p2-type] params]
+    (when (and p1-type p2-type)
+      (iyye_add_relation p1-type p2-type @iyye_consists_type))))
 
 (defn iyye_instance_function [p1 name]
   (let [])
@@ -126,10 +119,10 @@
   (let [get-type #(words/noun-words %)
         get-function #(:Function (words/action-words %))]
     (do
-      ((get-function @iyye_is_type) (get-type @iyye_ai) (get-type @iyye_actor))
-      ((get-function @iyye_is_type) (get-type @iyye_human) (get-type @iyye_actor))
-      ((get-function @iyye_is_type) (get-type @iyye_iyye) (get-type @iyye_ai))
-      ((get-function @iyye_is_type) (get-type @iyye_yumzya) (get-type @iyye_human)))))
+      ((get-function @iyye_is_type) [(get-type @iyye_ai) (get-type @iyye_actor)])
+      ((get-function @iyye_is_type) [(get-type @iyye_human) (get-type @iyye_actor)])
+      ((get-function @iyye_is_type) [(get-type @iyye_iyye) (get-type @iyye_ai)])
+      ((get-function @iyye_is_type) [(get-type @iyye_yumzya) (get-type @iyye_human)]))))
 
 (defn- init-builtins-kb []
   (init-builtin-words)
