@@ -1,5 +1,5 @@
 ; Iyye - AI agent
-; Copyright (C) 2016-2017  Sasha Yumzya
+; Copyright (C) 2016-2018  Sasha Yumzya
 
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU Affero General Public License as
@@ -51,7 +51,8 @@
                                      (conj (:Relations p2-type) p2-subtype))]
       (do
         (words/set-iyye-type! new-p1-type)
-        (words/set-iyye-type! new-p2-type)))))
+        (words/set-iyye-type! new-p2-type)
+        true))))
 
 (defn iyye_is_type_function [params]
   (let [[p1-type p2-type] params]
@@ -60,7 +61,7 @@
 
 (defn iyye_is_type_create_function [params]
   (let [[p1-name p2-type] params
-        p1-type (words/create-iyye-type p1-name)]
+        p1-type (words/create-iyye-type (:UNKNOWN p1-name))]
     (iyye_is_type_function [p1-type p2-type])))
 
 (defn iyye_consists_function [params]
@@ -89,7 +90,8 @@
 (defn- create-entry [entry] {(:Uname (:atom entry)) entry})
 
 (defn- init-builtin-words []
-  (let [actor (words/create-iyye-type "actor" true)
+  (let [type (words/create-iyye-type "type" true)
+        actor (words/create-iyye-type "actor" true)
         ai (words/create-iyye-type "ai" true)
         iyye (words/create-iyye-type "iyye" true)
         human (words/create-iyye-type "human" true)
@@ -100,7 +102,7 @@
     (dosync (ref-set iyye_iyye (uname iyye)))
     (dosync (ref-set iyye_human (uname human)))
     (dosync (ref-set iyye_yumzya (uname yumzya)))
-    (dosync (alter words/noun-words conj (create-entry actor)
+    (dosync (alter words/noun-words conj (create-entry type) (create-entry actor)
                    (create-entry ai) (create-entry iyye) (create-entry human)
                    (create-entry yumzya)))))
 
