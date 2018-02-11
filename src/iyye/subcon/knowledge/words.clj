@@ -59,12 +59,13 @@
 (def time-start (persistence/current-time-to-string))
 (defn get-supertypes [atype]
   "gets types: self, type, immidiate parents"               ; FIXME Yumzia:0 get all parents
-  (when (not (= :UNKNOWN atype))
+  (if (not (:UNKNOWN atype))
     (let [rels (:Relations atype)]
       (conj (for [supertype rels :when (:super (:Data supertype))]
               {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
               {:Name "type" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}
-              {:Name (:Name (:atom atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))))
+              {:Name (:Name (:atom atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))
+    {:UNKNOWN (:UNKNOWN atype)}))
 
 (defn create-iyye-instance [values])
 
@@ -86,7 +87,7 @@
   "returns a list of found atoms with supplied name"
   (let [builtin-types
         (for [word (vals @builtins) :when (= (:Name (:atom word)) name)] word)]
-    (if (empty? builtin-types) (list :UNKNOWN) builtin-types)))
+    (if (empty? builtin-types) (list {:UNKNOWN name}) builtin-types)))
 
 (defn get-iyye-types [name]
   (get-iyye-atoms name noun-words))
@@ -110,7 +111,7 @@
             pairs (map vector act-params params-types)
             ok (every? true? (for [cur pairs]
                                (if (= :UNKNOWN (first cur))
-                                 (empty? (second cur))
+                                 (if (:UNKNOWN (second cur)) true false)
                                  (some true?
                                        (map #(= (first cur) %) (map :Name (second cur)))))))]
     ok))))  ; FIXME Yumzya context aware compare
