@@ -83,9 +83,10 @@
 ;(defmacro getsrc [func] `(:source (meta (var ~func))))
 
 (defn- create-iyye-builtin-relation [name types func pred-func]
-  (words/create-iyye-relation name
-                              (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/current-time-to-string) :ALWAYS)
-                              types func pred-func true))
+  (words/create-iyye-relation
+    name
+    (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/current-time-to-string) :ALWAYS)
+    types func pred-func true))
 
 (defn- create-entry [entry] {(:Uname (:atom entry)) entry})
 
@@ -135,16 +136,18 @@
 ; (apply str (rest (str (:When {:When :ALWAYS}))))
 
 (defn- init-db-kb []
-  (let []
+  (let [
+        types-loaded (persistence/read-knowledge-from-db "types" {})
+        types (map words/create-iyye-type-from-db types-loaded)
+        a-f (fn [col el] (conj col (create-entry el)))]
     (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {}))) ; {:When :ALWAYS}
-    (dosync (alter words/noun-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "types" {} ; {:When :ALWAYS}
-    )))
-      ; others
+    (dosync (alter words/noun-words #(apply a-f %1  %2) types)) ; {:When :ALWAYS}
+    ; others
     ))
 
 (defn load-init-kb []
   (init-builtins-kb)
-  (init-db-kb))
+  (init-db-kb))      ; DB only for persistence
 
 (defn init-kb []
   (init-builtins-kb))
