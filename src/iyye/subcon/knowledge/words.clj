@@ -22,6 +22,8 @@
     ;[iyye.subcon.knowledge.relation :as relation]
     ))
 
+(def dbg-IO (ref nil))
+
 (def action-words (ref {}))
 (def noun-words (ref {}))
 ;(def types-words (ref []))
@@ -51,6 +53,35 @@
         type (->Iyye_Type type-atom [])]
     type))
 
+(defn create-iyye-type-from-db [t]
+  "de-serialize t"
+  (let [mykey #(keyword (str %1 %2))
+        create-types #(clojure.string/split (t (mykey "Relation-Types-List" %1)) #"_")
+        create-data #(hash-map (keyword (t (mykey "Relation-Data-List1" %1)))
+                       (t (mykey "Relation-Data-List2" %1)))
+        relations-list
+        (loop [rel-vec []
+               num 0]
+          (if-not (t (mykey "Relation-name" num))
+            rel-vec
+            (let [rel-uname (t (mykey "Relation-uname" num))]
+              (recur (conj rel-vec
+                         (->Iyye_Relation
+                           (->Iyye_Atom (t (mykey "Relation-name" num))
+                                        rel-uname
+                                        false)
+                           (->Iyye_ModalPredicate
+                             (t (mykey "Relation-AccordingTo" num))
+                             (t (mykey "Relation-When" num))
+                             (t (mykey "Relation-Time" num))
+                             (t (mykey "Relation-Prob" num)))
+                           (create-types num)
+                           (:Function (@action-words (t (mykey "Relation-uname" num))))
+                           (:PredicateFunction (@action-words (t (mykey "Relation-uname" num))))
+                           (create-data num)))
+                   (inc num)))))]
+    (->Iyye_Type (->Iyye_Atom (:Name t) (:Uname t) false) relations-list)))
+
 (defn create-iyye-relation [Name Predicate Types Function PredicateFunction & builtin]
   (let [action-atom (create-iyye-atom Name builtin)
         relation (->Iyye_Relation action-atom Predicate Types Function PredicateFunction [])]
@@ -71,17 +102,50 @@
 
 (defn load-iyye-atom-from-db [uname])
 
-(defn load-iyye-atoms-from-db [name & [dbname]])
+(defn load-iyye-atoms-from-db [name & [dbname]]
+  )
 
-(defn load-iyye-types-from-db [name]
-  (load-iyye-atoms-from-db name "types"))
+(defn- print-io-str [IO prstr]
+  "helper dbg func"
+  (future (Thread/sleep 1000) (ioframes/process-output IO (pr-str prstr))))
 
 (defn load-iyye-relations-from-db [name]
   (load-iyye-atoms-from-db name "relations"))
 
+(defn load-iyye-types-from-db [name]
+  (let [types (persistence/read-knowledge-from-db "types" {})]
+    ))
+
 (defn save-iyye-type-to-db [type]
+  (let [types-list-str (fn [types]
+          (reduce #(str %1 "_" %2) types))
+        rel-key (fn [name ind]
+          (keyword (str name ind)))
+        get-rel
+        (fn [ind rel]
+          {(rel-key "Relation-name" ind) (:Name (:atom rel))
+             (rel-key "Relation-uname" ind) (:Uname (:atom rel))
+            (rel-key "Relation-AccordingTo" ind) (:AccordingTo (:Predicate rel))
+            (rel-key "Relation-When" ind) (:When (:Predicate rel))
+            (rel-key "Relation-Time" ind) (:Time (:Predicate rel))
+             (rel-key "Relation-Prob" ind) (:Prob (:Predicate rel))
+             (rel-key "Relation-Types-List" ind) (types-list-str (:Types rel))
+           (rel-key "Relation-Data-List1" ind) (types-list-str (map name (keys (:Data rel))))
+               (rel-key "Relation-Data-List2" ind) (types-list-str (vals (:Data rel)))
+           })]
+    (let [write-type (reduce conj {:Uname (:Uname (:atom type))
+                                   :Name  (:Name (:atom type))}
+                             (map-indexed get-rel (:Relations type)))
+          ]
+      ; (when @dbg-IO (print-io-str @dbg-IO (pr-str "add list: " type ":::"
+      ;                                          (map-indexed get-rel (:Relations type)))))
+      (persistence/write-knowledge-to-db "types" write-type))))
+
+(defn save-iyye-builtin-type-to-db [type]
+
   )
 ;(persistence/write-noun-to-db (into {} type))
+
 
 (defn get-iyye-atoms [name builtins]
   "returns a list of found atoms with supplied name"
@@ -100,8 +164,9 @@
         builtin (:Builtin (:atom type))]
       (do
         (dosync (alter noun-words #(assoc % uname type)))
-        (when (not builtin)
-          (save-iyye-type-to-db type)))))
+        (if (not builtin)
+          (save-iyye-type-to-db type)
+          (save-iyye-builtin-type-to-db type)))))
 
 (defn check-params [action params]
   (let [act-params (:Types action)]
@@ -128,21 +193,23 @@
   (let [actions-list (get-iyye-relations cmd)
         params-list (apply concat (map get-iyye-types params))]
     (case (count actions-list)
-      0 (future (Thread/sleep 1000) (ioframes/process-output IO (str "failed to parse: no matching action to " cmd)))
+      0 (print-io-str IO (str "failed to parse: no matching action to " cmd))
       1 (let [action (first actions-list)
               result (func action params-list)]
           (if result
-            (future (Thread/sleep 1000) (ioframes/process-output IO (pr-str result)))))
+            (print-io-str IO result)))
       (let [matching-actions
             (for [action actions-list :when (check-params action params-list)] action)]
         (if (empty? matching-actions)
-          (future (Thread/sleep 800) (ioframes/process-output IO (pr-str "Cant find " cmd " " params)))
+          (print-io-str IO (pr-str "Cant find " cmd " " params))
           (let [result (func (first matching-actions) params-list)]
             (if result
-              (future (Thread/sleep 1000) (ioframes/process-output IO (pr-str result)))
-              (future (Thread/sleep 1000) (ioframes/process-output IO (str "False"))))))))))
+              (print-io-str IO result)
+              (print-io-str IO "False"))))))))
+
 
 (defn action [cmd params IO]
+  (when (not @dbg-IO) (dosync (ref-set dbg-IO IO)))
   (if (= \? (last cmd))
     (run-action (subs cmd 0 (dec (count cmd))) params IO apply-query)
     (run-action cmd params IO apply-relation)))
