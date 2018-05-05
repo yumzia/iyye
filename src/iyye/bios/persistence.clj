@@ -64,12 +64,10 @@
         entry {:time current-time-to-string dir input}]
     (mongo/add-entry dbname doc entry)))
 
-
  (defn write-knowledge-to-db [doc-name fact]
-   (let [dbname (str @iyye-name "_knowledge")
-         doc doc-name]
-     (println "writing to DB:" fact)
-     (mongo/add-entry dbname doc fact)))
+   (let [dbname (str @iyye-name "_knowledge")]
+     (log/info "add list: " (str fact))
+     (mongo/add-entry dbname doc-name fact)))
 
 ; (apply str (rest (str (:When {:When :ALWAYS}))))
 
