@@ -57,7 +57,7 @@
   "de-serialize t"
   (let [mykey #(keyword (str %1 %2))
         create-types #(clojure.string/split (t (mykey "Relation-Types-List" %1)) #"_")
-        create-data #(hash-map (keyword (t (mykey "Relation-Data-List1" %1)))
+        create-data #(hash-map (keyword (t (mykey "Relation-Data-List1" %1))) ; Only 2 now
                        (t (mykey "Relation-Data-List2" %1)))
         relations-list
         (loop [rel-vec []
@@ -87,10 +87,10 @@
         relation (->Iyye_Relation action-atom Predicate Types Function PredicateFunction [])]
     relation))
 
-(def time-start (persistence/current-time-to-string))
+(def time-start (persistence/local-time-to-string))
 (defn get-supertypes [atype]
   "gets types: self, type, immidiate parents"               ; FIXME Yumzia:0 get all parents
-  (if (not (:UNKNOWN atype))
+  (if-not (:UNKNOWN atype)
     (let [rels (:Relations atype)]
       (conj (for [supertype rels :when (:super (:Data supertype))]
               {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
@@ -164,7 +164,7 @@
         builtin (:Builtin (:atom type))]
       (do
         (dosync (alter noun-words #(assoc % uname type)))
-        (if (not builtin)
+        (if-not builtin
           (save-iyye-type-to-db type)
           (save-iyye-builtin-type-to-db type)))))
 
