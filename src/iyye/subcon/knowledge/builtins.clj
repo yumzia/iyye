@@ -85,7 +85,7 @@
 (defn- create-iyye-builtin-relation [name types func pred-func]
   (words/create-iyye-relation
     name
-    (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/current-time-to-string) :ALWAYS)
+    (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)
     types func pred-func true))
 
 (defn- create-entry [entry] {(:Uname (:atom entry)) entry})
@@ -136,8 +136,7 @@
 ; (apply str (rest (str (:When {:When :ALWAYS}))))
 
 (defn- init-db-kb []
-  (let [
-        types-loaded (persistence/read-knowledge-from-db "types" {})
+  (let [types-loaded (persistence/read-knowledge-from-db "types" {})
         types (map words/create-iyye-type-from-db types-loaded)
         a-f (fn [col el] (conj col (create-entry el)))]
     (dosync (alter words/action-words #(apply conj %1 %2) (persistence/read-knowledge-from-db "relations" {}))) ; {:When :ALWAYS}
