@@ -18,39 +18,43 @@
   (:require
     [clojure.tools.logging :as log]
     [iyye.bios.ioframes :as ioframes]
-    [iyye.bios.persistence :as persistence]
+    [iyye.bios.persistence :as persistence]))
     ;[iyye.subcon.knowledge.relation :as relation]
-    ))
 
 (def dbg-IO (ref nil))
 
-(def action-words (ref {}))
-(def noun-words (ref {}))
-;(def types-words (ref []))
-;(def relations-words (ref []))
-;(def instances-words (ref []))
-;(def adjective-words (ref []))
+(def builtin-words (ref {}))
 
-(defrecord Iyye_ModalPredicate [AccordingTo When Time Prob])
-(defrecord Iyye_Atom [Name Uname Builtin])
-(defrecord Iyye_Relation [atom Predicate Types Function PredicateFunction Data])
-(defrecord Iyye_Type [atom Relations])
-(defrecord Iyye_Instance [atom type])
+(defrecord Iyye_ModalPredicate [AccordingTo When Time Prob ])
+(defrecord Iyye_Name [Name Uname Type Word2vec Tags])
+(defrecord Iyye_Type [name Relations toString])
+(defrecord Iyye_Verb [name Types Result Function Complexity])
+;(defrecord Iyye_Query [verb PredicateFunction])
+(defrecord Iyye_Relation [name Types Predicate Function PredicateFunction Data])
+(defrecord Iyye_Instance [name type])
+(defrecord Iyye_Error [bug toString])
 
-(def atoms-number (ref 0))
-(defn inc-atoms! []
-  (dosync (ref-set atoms-number (inc @atoms-number)))
-  @atoms-number)
+(defn pred-toString [pred] (pr-str ))
 
-(defn create-iyye-atom [name & builtin]
-  (let [uname (str name (inc-atoms!))
+(def names-number (ref 0))
+(defn inc-names! []
+  (dosync (ref-set names-number (inc @names-number)))
+  @names-number)
+
+(defn get-types [verb] (if (:Types verb)
+                         (:Types verb)
+                         (if (:verb verb)
+                           ())))
+
+(defn create-iyye-name [name type & builtin]
+  (let [uname (str name (inc-names!))
         b (if (nil? builtin) false (first builtin))
-        atom (->Iyye_Atom name uname b)]
+        atom (->Iyye_Name name uname type nil {})]
     atom))
 
 (defn create-iyye-type [Name & builtin]
-  (let [type-atom (create-iyye-atom Name builtin)
-        type (->Iyye_Type type-atom [])]
+  (let [type-atom (create-iyye-name Name "type" builtin)
+        type (->Iyye_Type type-atom (list) pr-str)]
     type))
 
 (defn create-iyye-type-from-db [t]
@@ -58,7 +62,7 @@
   (let [mykey #(keyword (str %1 %2))
         create-types #(clojure.string/split (t (mykey "Relation-Types-List" %1)) #"_")
         create-data #(hash-map (keyword (t (mykey "Relation-Data-List1" %1))) ; Only 2 now
-                       (t (mykey "Relation-Data-List2" %1)))
+                               (t (mykey "Relation-Data-List2" %1)))
         relations-list
         (loop [rel-vec []
                num 0]
@@ -66,36 +70,47 @@
             rel-vec
             (let [rel-uname (t (mykey "Relation-uname" num))]
               (recur (conj rel-vec
-                         (->Iyye_Relation
-                           (->Iyye_Atom (t (mykey "Relation-name" num))
-                                        rel-uname
-                                        false)
-                           (->Iyye_ModalPredicate
-                             (t (mykey "Relation-AccordingTo" num))
-                             (t (mykey "Relation-When" num))
-                             (t (mykey "Relation-Time" num))
-                             (t (mykey "Relation-Prob" num)))
-                           (create-types num)
-                           (:Function (@action-words (t (mykey "Relation-uname" num))))
-                           (:PredicateFunction (@action-words (t (mykey "Relation-uname" num))))
-                           (create-data num)))
-                   (inc num)))))]
-    (->Iyye_Type (->Iyye_Atom (:Name t) (:Uname t) false) relations-list)))
+                           (->Iyye_Relation
+                             (->Iyye_Name (t (mykey "Relation-name" num))
+                                          rel-uname
+                                          "relation"
+                                          nil {})
+                             []
+                             (->Iyye_ModalPredicate
+                               (t (mykey "Relation-AccordingTo" num))
+                               (t (mykey "Relation-When" num))
+                               (t (mykey "Relation-Time" num))
+                               (t (mykey "Relation-Prob" num)))
+                             nil
+                             ;  (create-types num)
+                             ; (:Function (@verb-words (t (mykey "Relation-uname" num))))
+                             (:PredicateFunction (@builtin-words (t (mykey "Relation-uname" num))))
+                             (create-data num)))
+                     (inc num)))))]
+    (->Iyye_Type (->Iyye_Name (:Name t) (:Uname t) "type" nil {}) relations-list str)))
+
+(defn create-iyye-verb [Name Types Result Function & builtin]
+  (let [action-atom (create-iyye-type Name "verb" builtin)
+        relation (->Iyye_Verb action-atom Types Result Function [])]
+    relation))
 
 (defn create-iyye-relation [Name Predicate Types Function PredicateFunction & builtin]
-  (let [action-atom (create-iyye-atom Name builtin)
-        relation (->Iyye_Relation action-atom Predicate Types Function PredicateFunction [])]
+  (let [action-atom (create-iyye-name Name "relation" builtin)
+        relation (->Iyye_Relation action-atom Types Predicate Function PredicateFunction [])]
     relation))
 
 (def time-start (persistence/local-time-to-string))
+
 (defn get-supertypes [atype]
-  "gets types: self, type, immidiate parents"               ; FIXME Yumzia:0 get all parents
+  "gets types: self, type, immediate parents"               ; FIXME Yumzia:0 get all parents
   (if-not (:UNKNOWN atype)
-    (let [rels (:Relations atype)]
-      (conj (for [supertype rels :when (:super (:Data supertype))]
-              {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
-              {:Name "type" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}
-              {:Name (:Name (:atom atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))
+    (if-not (and (= "type" (:Name (:name atype))) (not= "relation" (:Type (:name atype))))
+      (let [rels (:Relations atype)]
+       (conj (for [supertype rels :when (:super (:Data supertype))]
+                {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
+             {:Name (:Type (:name atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}
+             {:Name (:Name (:name atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))
+      (list {:Name "type" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))
     {:UNKNOWN (:UNKNOWN atype)}))
 
 (defn create-iyye-instance [values])
@@ -118,23 +133,23 @@
 
 (defn save-iyye-type-to-db [type]
   (let [types-list-str (fn [types]
-          (reduce #(str %1 "_" %2) types))
+                         (reduce #(str %1 "_" %2) types))
         rel-key (fn [name ind]
-          (keyword (str name ind)))
+                  (keyword (str name ind)))
         get-rel
         (fn [ind rel]
-          {(rel-key "Relation-name" ind) (:Name (:atom rel))
-             (rel-key "Relation-uname" ind) (:Uname (:atom rel))
-            (rel-key "Relation-AccordingTo" ind) (:AccordingTo (:Predicate rel))
-            (rel-key "Relation-When" ind) (:When (:Predicate rel))
-            (rel-key "Relation-Time" ind) (:Time (:Predicate rel))
-             (rel-key "Relation-Prob" ind) (:Prob (:Predicate rel))
-             (rel-key "Relation-Types-List" ind) (types-list-str (:Types rel))
-           (rel-key "Relation-Data-List1" ind) (types-list-str (map name (keys (:Data rel))))
-               (rel-key "Relation-Data-List2" ind) (types-list-str (vals (:Data rel)))
+          {(rel-key "Relation-name" ind)        (:Name (:name rel))
+           (rel-key "Relation-uname" ind)       (:Uname (:name rel))
+           (rel-key "Relation-AccordingTo" ind) (:AccordingTo (:Predicate rel))
+           (rel-key "Relation-When" ind)        (:When (:Predicate rel))
+           (rel-key "Relation-Time" ind)        (:Time (:Predicate rel))
+           (rel-key "Relation-Prob" ind)        (:Prob (:Predicate rel))
+           (rel-key "Relation-Types-List" ind)  (types-list-str (:Types rel))
+           (rel-key "Relation-Data-List1" ind)  (types-list-str (map name (keys (:Data rel))))
+           (rel-key "Relation-Data-List2" ind)  (types-list-str (vals (:Data rel)))
            })]
-    (let [write-type (reduce conj {:Uname (:Uname (:atom type))
-                                   :Name  (:Name (:atom type))}
+    (let [write-type (reduce conj {:Uname (:Uname (:name type))
+                                   :Name  (:Name (:name type))}
                              (map-indexed get-rel (:Relations type)))
           ]
       ; (when @dbg-IO (print-io-str @dbg-IO (pr-str "add list: " type ":::"
@@ -146,70 +161,82 @@
   )
 ;(persistence/write-noun-to-db (into {} type))
 
-
-(defn get-iyye-atoms [name builtins]
+(defn get-iyye-atoms [name mypred]
   "returns a list of found atoms with supplied name"
   (let [builtin-types
-        (for [word (vals @builtins) :when (= (:Name (:atom word)) name)] word)]
+        (for [word (vals @builtin-words) :when (= (mypred word) name)] word)]
     (if (empty? builtin-types) (list {:UNKNOWN name}) builtin-types)))
 
 (defn get-iyye-types [name]
-  (get-iyye-atoms name noun-words))
+  (get-iyye-atoms name #(:Name (:name %))))
 
-(defn get-iyye-relations [name]
-  (get-iyye-atoms name action-words))
+(defn get-iyye-verbs [name]
+  (get-iyye-atoms name #(:Name (:name (:name %)))))
+
+(defn get-iyye-words [name]
+  (let [types (get-iyye-types name)
+        verbs (get-iyye-verbs name)]
+    (if (:UNKNOWN (first types))
+      (if (:UNKNOWN (first verbs))
+        types
+        verbs)
+      (if (:UNKNOWN (first verbs))
+        types
+        (apply conj verbs types)))))
 
 (defn set-iyye-type! [type]
-  (let [uname (:Uname (:atom type))
-        builtin (:Builtin (:atom type))]
-      (do
-        (dosync (alter noun-words #(assoc % uname type)))
-        (if-not builtin
-          (save-iyye-type-to-db type)
-          (save-iyye-builtin-type-to-db type)))))
+  (let [uname (:Uname (:name type))
+        builtin (:Builtin (:name type))]
+    (do
+      (dosync (alter builtin-words #(assoc % uname type)))
+      (if-not builtin
+        (save-iyye-type-to-db type)
+        (save-iyye-builtin-type-to-db type)))))
 
 (defn check-params [action params]
-  (let [act-params (:Types action)]
-    (when (= (count params) (count act-params))
-      (let [params-types (map #(get-supertypes %) params)
-        ;   vec-params (vec (map #(:Name (:atom %)) params))
-            pairs (map vector act-params params-types)
-            ok (every? true? (for [cur pairs]
-                               (if (= :UNKNOWN (first cur))
-                                 (if (:UNKNOWN (second cur)) true false)
-                                 (some true?
-                                       (map #(= (first cur) %) (map :Name (second cur)))))))]
-    ok))))  ; FIXME Yumzya context aware compare
+  "true if params matches action, false other ways"
+  (let [act-params (:Types action)
+        check-params-count
+        (fn [p1 p2]
+          (if (= "*" (last p2))
+            (>= (count p1) (count p2))
+            (= (count p1) (count p2))))]
+    (when (check-params-count params act-params)
+      (let [params-types (map #(get-supertypes %) (flatten params))
+            act-params2 (take (count params-types) act-params)
+            ;   vec-params (vec (map #(:Name (:name %)) params))
+            pairs (map vector act-params2 params-types)
+            check-pair (fn [t check]
+                         (case t
+                             :UNKNOWN (= :UNKNOWN check)
+                             "*" true
+                             (some true?
+                                   (map #(= t %) (map :Name check)))))]
+        (every? true? (for [cur pairs] (check-pair (first cur) (flatten (second cur)))))))))    ; FIXME Yumzya context aware compare/tags
 
-(defn apply-relation [relation params]
-  (when (check-params relation params)
-    ((:Function relation) params)))
+; (defn apply-relation [relation params]
+; (when (check-params relation params)
+;  ((:Function relation) params)) )
 
-(defn apply-query [relation params]
-  (when (check-params relation params)
-    ((:PredicateFunction relation) params)))
-
-(defn- run-action [cmd params IO func]
-  (let [actions-list (get-iyye-relations cmd)
-        params-list (apply concat (map get-iyye-types params))]
+(defn run-action [cmd params IO]
+  (let [actions-list (get-iyye-verbs cmd)
+        params-list (if (map? (first params))               ; map? is a check for non-string but resolved type
+                      params (map get-iyye-words params))]
     (case (count actions-list)
-      0 (print-io-str IO (str "failed to parse: no matching action to " cmd))
-      1 (let [action (first actions-list)
-              result (func action params-list)]
-          (if result
-            (print-io-str IO result)))
+      0 (->Iyye_Error (str "failed to parse: no matching action to " cmd) pr-str)
+      1 (let [action (first actions-list)]
+          (if (check-params action params-list)
+            ((:Function action) params-list)
+            (->Iyye_Error (pr-str "Params invalid for " cmd " : " params) pr-str)))
       (let [matching-actions
             (for [action actions-list :when (check-params action params-list)] action)]
-        (if (empty? matching-actions)
-          (print-io-str IO (pr-str "Cant find " cmd " " params))
-          (let [result (func (first matching-actions) params-list)]
-            (if result
-              (print-io-str IO result)
-              (print-io-str IO "False"))))))))
-
+        (case (count matching-actions)
+          0 (->Iyye_Error (pr-str "Cant find " cmd " " params) pr-str)
+          1 ((:Function (first matching-actions)) params-list)
+          (->Iyye_Error (pr-str "Too many actions " cmd " " params) pr-str))))))
 
 (defn action [cmd params IO]
-  (when (not @dbg-IO) (dosync (ref-set dbg-IO IO)))
-  (if (= \? (last cmd))
-    (run-action (subs cmd 0 (dec (count cmd))) params IO apply-query)
-    (run-action cmd params IO apply-relation)))
+  "Params are either text or objects from previous evaluations"
+  (when (not @dbg-IO) (dosync (ref-set dbg-IO IO)))         ; set debug
+  ; (print-io-str @dbg-IO (str "cmd: " cmd "::" (pr-str params)) )
+  (run-action cmd params IO))
