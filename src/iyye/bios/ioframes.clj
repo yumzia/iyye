@@ -26,7 +26,7 @@
 
 (defrecord IO [name start-function inputs-list outputs-list])
 
-(defn create-IO [name start-fumction inputs-list outputs-list] (IO. name start-fumction inputs-list outputs-list))
+(defn create-IO [name start-function inputs-list outputs-list] (IO. name start-function inputs-list outputs-list))
 
 (defn process-input [IO input]
   (log/info (str "in: " (:name IO) input))
@@ -37,4 +37,3 @@
   (log/info (str "out:" (:name IO) output))
   (dorun (map #(% IO output) (:outputs-list (:outputs-list IO))))
   (persistence/write-io-to-db @resource/num-days IO :output output))
-
