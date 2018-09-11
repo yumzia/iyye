@@ -34,8 +34,8 @@
         params (for [cur (rest tree)]
                  (if (seq? cur) (process-lispy-control cur (str cur) IO) cur))]
     (if cmd
-      (dorun (scwords/action cmd params IO))
-      (future (Thread/sleep 500) (ioframes/process-output IO (str "failed to parse: " input))))))
+      (let [result (scwords/action cmd params IO)] result)
+      (scwords/->Iyye_Error (str "failed to parse: " input) identity))))
 
 (defn process-lispy-ctrl-input [IO input]
   (let [tree (parse/get-syntax-tree input)]
@@ -46,11 +46,17 @@
   (if (= \# (first input))
     (process-lispy-ctrl-input IO (subs input 1))
     ;(future (Thread/sleep 1000) (ioframes/process-output IO "parsing lispy sentences not implemented yet"))
-    (let [tree (parse/get-syntax-tree input)]
-      (future (process-lispy-control tree input IO)))))
+    (let [tree (parse/get-syntax-tree input)
+          result (process-lispy-control tree input IO)
+          tostr (if (:toString result) (:toString result) pr-str)]
+      (future (Thread/sleep 100) (ioframes/process-output IO (tostr result))))))
+
+;(defrecord DayRoutine [name day-start day-time threshold function task-future parent])
+
 
 (defn process-input [IO input]
-   (if (= input "What is answer to life, the universe and everything?")
+  ; (ioframes/process-output IO (str "IO ref" @dbg-IO))
+  (if (= input "What is answer to life, the universe and everything?")
      (future (Thread/sleep 1000) ( ioframes/process-output IO "42" ))
      (if (= \# (first input))
        (process-lispy-input IO (subs input 1))
