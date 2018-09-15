@@ -35,7 +35,6 @@
 (def iyye_create_instance (ref 0))
 
 (defn iyye_is_type_predicate_function [params]
-  (if (= 2 (count params))
     (let [[p1-type p2-type] params
           p2-name (:Name (:name (first p2-type)))
           rels1 (:Relations (first p1-type))
@@ -44,18 +43,18 @@
           rels3 (filter #(second %) rels2)]
       (if (> (count rels3) 0)
         (:Predicate (first (first rels3)))
-        (words/->Iyye_ModalPredicate :IYE :AXIOM "now" :NEVER)
-        ))
-    (words/->Iyye_Error (pr-str "No relation, unrelated: " params) pr-str)
-    )
-  ) ; FIXME Yumzia modal logic, FIXME 0 recursive
+        (words/->Iyye_ModalPredicate :IYE :AXIOM "now" :NEVER)))); FIXME Yumzia modal logic, FIXME 0 recursive
 
 (defn iyye_is_predicate_function [params]
     (let [[relations & rest] params
           rel (first (filter #(= "relation" (:Type (:name %))) relations))]
-      (if rel
-        ((:PredicateFunction rel) rest)
-        (words/->Iyye_Error (pr-str "No relation: " relations) pr-str))))
+      (if (= 2 (count rest))
+        (if (and (not (:UNKNOWN (first (first rest)))) (not (:UNKNOWN (first (second rest)))))
+          (if rel
+            ((:PredicateFunction rel) rest)
+            (words/->Iyye_Error (pr-str "No relation: " relations) pr-str))
+          (words/->Iyye_Error (pr-str "No relation, unknown: " rest) pr-str))
+        (words/->Iyye_Error (pr-str "No relation, unrelated, should be 2: " rest) pr-str))))
 
 (defn iyye_add_relation [p1-type p2-type relation]
   (let [is_type relation]
