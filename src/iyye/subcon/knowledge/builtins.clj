@@ -43,7 +43,7 @@
           rels3 (filter #(second %) rels2)]
       (if (> (count rels3) 0)
         (:Predicate (first (first rels3)))
-        (words/->Iyye_ModalPredicate :IYE :AXIOM "now" :NEVER)))); FIXME Yumzia modal logic, FIXME 0 recursive
+        (words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :NEVER)))); FIXME Yumzia modal logic, FIXME 0 recursive
 
 (defn iyye_is_predicate_function [params]
     (let [[relations & rest] params
@@ -67,15 +67,16 @@
       (do
         (words/set-iyye-type! new-p1-type)
         (words/set-iyye-type! new-p2-type)
-        true))))
+        new-p2-type))))
 
 (defn iyye_is_type_function [params]
-  (let [[relation & remaining] params]
+  (let [[relations & remaining] params
+        rel (first (filter #(= "relation" (:Type (:name %))) relations))]
     ; (case (count relation)
     ;  0 (words/->Iyye_Error (pr-str "No relation: " params) pr-str)
-      (if (and (:Predicate relation) (words/check-params relation remaining)) ; is Relation
-        ((:Function relation) (cons relation remaining))
-        (words/->Iyye_Error (pr-str "Not a relation: " relation) pr-str)))
+      (if (and (:Predicate rel) (words/check-params rel remaining)) ; is Relation
+        ((:Function rel) remaining)
+        (words/->Iyye_Error (pr-str "Not a relation: " rel) pr-str)))
     ; (let [rels (filter #(and (not (nil? %)) (words/check-params % remaining)) relation)]
     ; (if (> (count rels) 1)
     ;  (words/->Iyye_Error (pr-str "Too many relations: " rels) pr-str)
@@ -85,23 +86,19 @@
     )
 
 (defn iyye_is_type_function_relation [params]
-  (let [[rel type1 type2 & rest] params]
+  (let [[type1 type2 & rest] params]
   (if rest
     (words/->Iyye_Error (pr-str "Too many types to relation: " params) pr-str)
     (if type2
-      (if (words/check-params rel params)
-        (iyye_add_relation type1 type2 (words/builtin-words @iyye_is_type_rel) ))
-      (words/->Iyye_Error (pr-str "only one type for relation: " params) pr-str)))))
-
-(defn iyye_is_type_create_function [params]
-  (let [[p1-name p2-type] params
-        p1-type (words/create-iyye-type (:UNKNOWN p1-name))]
-    (iyye_is_type_function [p1-type p2-type])))
+      (if (:UNKNOWN (first type2))
+        (iyye_add_relation (first type1)  (words/create-iyye-type (:UNKNOWN (first type2))) (words/builtin-words @iyye_is_type_rel))
+        (iyye_add_relation (first type1) (first type2) (words/builtin-words @iyye_is_type_rel)))
+      (words/->Iyye_Error (pr-str "No type in : " params) pr-str)))))
 
 (defn iyye_consists_function [params]
   (let [[p1-type p2-type] params]
     (when (and p1-type p2-type)
-      (iyye_add_relation p1-type p2-type @iyye_consists_type))))
+      (iyye_add_relation p1-type p2-type @iyye_consists_type)))) ; FIXME Yumzya
 
 (defn iyye_instance_function [p1 name]
   (let [])
