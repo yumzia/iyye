@@ -25,7 +25,7 @@
 
 (def builtin-words (ref {}))
 
-(defrecord Iyye_ModalPredicate [AccordingTo When Time Prob ])
+(defrecord Iyye_ModalPredicate [AccordingTo When Time Prob])
 (defrecord Iyye_Name [Name Uname Type Word2vec Tags])
 (defrecord Iyye_Type [name Relations toString])
 (defrecord Iyye_Verb [name Types Result Function Complexity])
@@ -103,15 +103,18 @@
 
 (defn get-supertypes [atype]
   "gets types: self, type, immediate parents"               ; FIXME Yumzia:0 get all parents
-  (if-not (:UNKNOWN atype)
-    (if-not (and (= "type" (:Name (:name atype))) (not= "relation" (:Type (:name atype))))
-      (let [rels (:Relations atype)]
-       (conj (for [supertype rels :when (:super (:Data supertype))]
-                {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
-             {:Name (:Type (:name atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}
-             {:Name (:Name (:name atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))
-      (list {:Name "type" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))
-    {:UNKNOWN (:UNKNOWN atype)}))
+  (cond
+    (:UNKNOWN atype) (list {:UNKNOWN (:UNKNOWN atype)})
+    (and (= "type" (:Name (:name atype))) (not= "relation" (:Type (:name atype))))
+    (list {:Name "type" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)})
+
+    (:AccordingTo atype) (list {:Name "predicate" :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)})
+    :else
+    (let [rels (:Relations atype)]
+      (conj (for [supertype rels :when (:super (:Data supertype))]
+              {:Name (:super (:Data supertype)) :Predicate (:Predicate supertype)})
+            {:Name (:Type (:name atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}
+            {:Name (:Name (:name atype)) :Predicate (->Iyye_ModalPredicate :IYE :AXIOM time-start :ALWAYS)}))))
 
 (defn create-iyye-instance [values])
 
@@ -193,47 +196,68 @@
         (save-iyye-type-to-db type)
         (save-iyye-builtin-type-to-db type)))))
 
-(defn check-params [action params]
+(defn check-select-params [action params]
   "true if params matches action, false other ways"
   (let [act-params (:Types action)
         check-params-count
         (fn [p1 p2]
           (if (= "*" (last p2))
             (>= (count p1) (count p2))
-            (= (count p1) (count p2))))]
+            (= (count p1) (count p2))))
+        expand-params (fn [p] (map #(map (fn [stype] (assoc stype :Param %)) (get-supertypes %))
+                                   p))]
     (when (check-params-count params act-params)
-      (let [params-types (map #(get-supertypes %) (flatten params))
+      (let [params-types (for [cur params] (expand-params cur))
             act-params2 (take (count params-types) act-params)
             ;   vec-params (vec (map #(:Name (:name %)) params))
-            pairs (map vector act-params2 params-types)
+            pairs (map #(vector %1 (flatten  %2)) act-params2 params-types)
             check-pair (fn [t check]
                          (case t
                              :UNKNOWN (= :UNKNOWN check)
                              "*" true
+                             "?" true
                              (some true?
-                                   (map #(= t %) (map :Name check)))))]
-        (every? true? (for [cur pairs] (check-pair (first cur) (flatten (second cur)))))))))    ; FIXME Yumzya context aware compare/tags
+                                   (map #(= t %) (map :Name check)))))
+            select-pair (fn [t check]
+                         (case t
+                           :UNKNOWN (first check)
+                           "*" (first check)
+                           "?" (first check)
+                           (if (some true?
+                                     (map #(= t %) (map :Name check)))
+                             (first check))))]
+        (if-not (every? true? (for [cur pairs] (check-pair (first cur) (flatten (second cur)))))
+          false
+          (flatten (for [cur pairs] (:Param (select-pair (first cur) (second cur))))))))))    ; FIXME Yumzya context aware compare/tags
 
 ; (defn apply-relation [relation params]
 ; (when (check-params relation params)
 ;  ((:Function relation) params)) )
 
+(defn action-function [action params-list pred]
+  (if (and (= (:type (:name (first params-list)))  "relation")
+           (= (:Result action) "predicate"))
+    ((:Function action) (conj params-list pred))
+    ((:Function action) params-list)))
+
 (defn run-action [cmd params IO]
   (let [actions-list (get-iyye-verbs cmd)
         params-list (if (map? (first params))               ; map? is a check for non-string but resolved type
-                      params (map get-iyye-words params))]
+                      params (map get-iyye-words params))
+        pred (->Iyye_ModalPredicate :YUMZIA :INSTRUCTION (persistence/local-time-to-string) :ALWAYS)]
     (case (count actions-list)
       0 (->Iyye_Error (str "failed to parse: no matching action to " cmd) pr-str)
-      1 (let [action (first actions-list)]
-          (if (check-params action params-list)
-            ((:Function action) params-list)
+      1 (let [action (first actions-list)
+              plist (check-select-params action params-list)]
+          (if plist
+            (action-function action plist pred)
             (->Iyye_Error (pr-str "Params invalid for " cmd " : " params) pr-str)))
       (let [matching-actions
-            (for [action actions-list :when (check-params action params-list)] action)]
+            (for [action actions-list :when (check-select-params action params-list)] action)]
         (case (count matching-actions)
           0 (->Iyye_Error (pr-str "Cant find " cmd " " params) pr-str)
-          1 ((:Function (first matching-actions)) params-list)
-          (->Iyye_Error (pr-str "Too many actions " cmd " " params) pr-str))))))
+          1 (action-function (first matching-actions) (check-select-params (first matching-actions) params-list) pred)
+          (->Iyye_Error (pr-str "Too many actions " cmd " " params) pr-str)))))) ; FIXME probabilities
 
 (defn action [cmd params IO]
   "Params are either text or objects from previous evaluations"
