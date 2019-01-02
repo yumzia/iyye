@@ -1,5 +1,5 @@
 ; Iyye - AI agent
-; Copyright (C) 2016-2018  Sasha Yumzya
+; Copyright (C) 2016-2019  Sasha Yumzya
 
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,8 @@
                                      [clojure.tools.logging :as log]
                                      [iyye.bios.persistence :as persistence]
                                      ;[iyye.subcon.knowledge.relation :as relation]
-                                     [iyye.subcon.knowledge.words :as words]))
+                                     [iyye.subcon.knowledge.words :as words]
+                                     [iyye.subcon.knowledge.inference :as inference]))
 
 ; Builtin types
 (def iyye_actor (ref 0))
@@ -71,21 +72,21 @@
       new-p2-type)))
 
 (defn iyye_is_type_function [params]
-  (let [[rel & remaining] params
-        pars (words/check-select-params rel remaining)
+  (let [[pred rel & remaining] params
+        ;       pars (words/check-select-params rel remaining)
         ;rel (first (filter #(= "relation" (:Type (:name %))) relations))
         ]
-      (if (and (:Predicate rel) pars) ; is Relation
-        ((:Function rel) pars)
+      (if (:Predicate rel) ; is Relation
+        ((:Function rel) (cons pred remaining))
         (words/->Iyye_Error (pr-str "Not a relation: " rel) pr-str))))
 
 (defn iyye_is_type_function_relation [params]
-  (let [[type1 type2 pred & rest] params]
+  (let [[pred type1 type2 & rest] params]
   (if rest
     (words/->Iyye_Error (pr-str "Too many types to relation: " params) pr-str)
     (if type2
-      (if (:UNKNOWN (first type2))
-        (iyye_add_relation type1 (words/create-iyye-type (:UNKNOWN type2)) (words/builtin-words @iyye_is_type_rel) pred)
+      (if (:UNKNOWN type2)
+        (iyye_add_relation (words/create-iyye-type (:UNKNOWN type2)) type1 (words/builtin-words @iyye_is_type_rel) pred)
         (iyye_add_relation type1 type2 (words/builtin-words @iyye_is_type_rel) pred))
       (words/->Iyye_Error (pr-str "No type in : " params) pr-str)))))
 
@@ -144,7 +145,7 @@
                    (create-entry yumzya)))))
 
 (defn- init-builtin-relations []
-  (let [t_is (create-iyye-builtin-relation "type" ["type" "?" "predicate"] iyye_is_type_function_relation iyye_is_type_predicate_function)
+  (let [t_is (create-iyye-builtin-relation "type" ["type" "?"] iyye_is_type_function_relation iyye_is_type_predicate_function)
         ;t_is2 (create-iyye-builtin-relation "is" [:UNKNOWN "type"] iyye_is_type_create_function iyye_is_type_predicate_function)
         ;  consistsof (create-iyye-builtin-relation "has" [] iyye_consists_function iyye_is_type_predicate_function)
         ;instof (create-iyye-builtin-relation "instance" ["type"] iyye_instance_function iyye_is_type_predicate_function)
@@ -156,8 +157,8 @@
     (dosync (alter words/builtin-words conj (create-entry t_is)))))
 
 (defn- init-builtin-verbs []
-  (let [t_is (create-iyye-builtin-verb "is" ["relation" "*"] "relation" iyye_is_type_function)
-        t_is? (create-iyye-builtin-query "is?" ["relation" "type" "?"] iyye_is_predicate_function)
+  (let [t_is (create-iyye-builtin-verb "is" ["predicate" "relation" "*"] "relation" iyye_is_type_function)
+        t_is? (create-iyye-builtin-query "is?" ["relation" "*"] iyye_is_predicate_function)
         ;t_is2 (create-iyye-builtin-relation "is" [:UNKNOWN "type"] iyye_is_type_create_function iyye_is_type_predicate_function)
         consistsof (create-iyye-builtin-verb "has" ["type" "*"] "relation" iyye_consists_function)
         ;instof (create-iyye-builtin-relation "instance" ["type"] iyye_instance_function iyye_is_type_predicate_function)
@@ -175,21 +176,20 @@
         f (get-function @iyye_is_type)]
         (when f
           (do
-            (f [(get-type @iyye_is_type_rel) [(get-type @iyye_ai)] [(get-type @iyye_actor)]
-                [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)]])
-            (f [(get-type @iyye_is_type_rel) [(get-type @iyye_human)] [(get-type @iyye_actor)]
-                [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)]])
-            (f [(get-type @iyye_is_type_rel) [(get-type @iyye_iyye)] [(get-type @iyye_ai)]
-                [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)]])
-            (f [(get-type @iyye_is_type_rel) [(get-type @iyye_yumzya)] [(get-type @iyye_human)]
-                [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)]])))))
+            (f [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)
+                (get-type @iyye_is_type_rel) (get-type @iyye_ai) (get-type @iyye_actor)])
+            (f [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)
+                (get-type @iyye_is_type_rel) (get-type @iyye_human) (get-type @iyye_actor)])
+            (f [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)
+                (get-type @iyye_is_type_rel) (get-type @iyye_iyye) (get-type @iyye_ai)])
+            (f [(words/->Iyye_ModalPredicate :IYE :AXIOM (persistence/local-time-to-string) :ALWAYS)
+                (get-type @iyye_is_type_rel) (get-type @iyye_yumzya) (get-type @iyye_human)])))))
 
 (defn- init-builtins-kb []
   (init-builtin-words)
   (init-builtin-verbs)
   (init-builtin-relations)
-  (apply-builtin-relations)
-  )
+  (apply-builtin-relations))
 
 ;(dorun (map #(do ( persistence/write-fact-to-db (into {} %))) @action-words))
 ; (apply str (rest (str (:When {:When :ALWAYS}))))
