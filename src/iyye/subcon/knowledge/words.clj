@@ -1,5 +1,5 @@
 ; Iyye - AI agent
-; Copyright (C) 2016-2018  Sasha Yumzya
+; Copyright (C) 2016-2019  Sasha Yumzya
 
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU Affero General Public License as
@@ -181,7 +181,7 @@
         verbs (get-iyye-verbs name)]
     (if (:UNKNOWN (first types))
       (if (:UNKNOWN (first verbs))
-        types
+        (list (first types))
         verbs)
       (if (:UNKNOWN (first verbs))
         types
@@ -197,20 +197,25 @@
         (save-iyye-builtin-type-to-db type)))))
 
 (defn check-select-params [action params]
-  "true if params matches action, false other ways"
+  "params tree if params matches action, false other ways"
   (let [act-params (:Types action)
+        relation-check (if (= "relation" (first act-params))
+                         (check-select-params (first (filter :Predicate (first params))) (rest params)) true)
         check-params-count
         (fn [p1 p2]
           (if (= "*" (last p2))
             (>= (count p1) (count p2))
             (= (count p1) (count p2))))
-        expand-params (fn [p] (map #(map (fn [stype] (assoc stype :Param %)) (get-supertypes %))
-                                   p))]
-    (when (check-params-count params act-params)
+        expand-params (fn [p] (map #(map (fn [stype] (assoc stype :Param %)) (get-supertypes %)) p))]
+    (when (and relation-check (check-params-count params act-params))
       (let [params-types (for [cur params] (expand-params cur))
-            act-params2 (take (count params-types) act-params)
+            params-len (count params-types)
+            act-params2 (take params-len act-params)
+            act-params3 (reduce conj (if (and (= "*" (last act-params2)) (> params-len (count act-params)))
+                                       (repeat (- params-len (count act-params)) "*")
+                                       (list)) (reverse (take params-len act-params)))
             ;   vec-params (vec (map #(:Name (:name %)) params))
-            pairs (map #(vector %1 (flatten  %2)) act-params2 params-types)
+            pairs (map #(vector %1 (flatten %2)) act-params3 params-types)
             check-pair (fn [t check]
                          (case t
                              :UNKNOWN (= :UNKNOWN check)
@@ -234,33 +239,32 @@
 ; (when (check-params relation params)
 ;  ((:Function relation) params)) )
 
-(defn action-function [action params-list pred]
-  (if (and (= (:type (:name (first params-list)))  "relation")
-           (= (:Result action) "predicate"))
-    ((:Function action) (conj params-list pred))
-    ((:Function action) params-list)))
-
-(defn run-action [cmd params IO]
+(defn run-action [cmd params]
   (let [actions-list (get-iyye-verbs cmd)
         params-list (if (map? (first params))               ; map? is a check for non-string but resolved type
                       params (map get-iyye-words params))
-        pred (->Iyye_ModalPredicate :YUMZIA :INSTRUCTION (persistence/local-time-to-string) :ALWAYS)]
+        pred (->Iyye_ModalPredicate :YUMZIA :INSTRUCTION (persistence/local-time-to-string) :ALWAYS)
+        append-param-list (fn [action plist]
+                            (if (and (= (:Result action) "relation") (= (:Type (:name (first (filter :Predicate (first plist))))) "relation"))
+                              (cons (list pred) plist)
+                              plist))]
     (case (count actions-list)
       0 (->Iyye_Error (str "failed to parse: no matching action to " cmd) pr-str)
       1 (let [action (first actions-list)
-              plist (check-select-params action params-list)]
+              plist (check-select-params action (append-param-list action params-list))]
           (if plist
-            (action-function action plist pred)
+            ((:Function action) plist)
             (->Iyye_Error (pr-str "Params invalid for " cmd " : " params) pr-str)))
       (let [matching-actions
-            (for [action actions-list :when (check-select-params action params-list)] action)]
+            (for [action actions-list :when (check-select-params action (append-param-list action params-list))] action)]
         (case (count matching-actions)
           0 (->Iyye_Error (pr-str "Cant find " cmd " " params) pr-str)
-          1 (action-function (first matching-actions) (check-select-params (first matching-actions) params-list) pred)
+          1 ((:Function (first matching-actions)) (check-select-params (first matching-actions)
+                                                                       (append-param-list (first matching-actions) params-list)))
           (->Iyye_Error (pr-str "Too many actions " cmd " " params) pr-str)))))) ; FIXME probabilities
 
 (defn action [cmd params IO]
   "Params are either text or objects from previous evaluations"
   (when (not @dbg-IO) (dosync (ref-set dbg-IO IO)))         ; set debug
   ; (print-io-str @dbg-IO (str "cmd: " cmd "::" (pr-str params)) )
-  (run-action cmd params IO))
+  (run-action cmd params))
